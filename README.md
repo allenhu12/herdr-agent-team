@@ -55,7 +55,6 @@ for coding agents. It works with Claude Code and Codex CLI panes.
 ## Installation
 
 Clone the repository, then copy it to the skills directory your agent reads.
-Replace `https://github.com/allenhu12/herdr-agent-team.git` with the URL of this repository.
 
 ```bash
 git clone https://github.com/allenhu12/herdr-agent-team.git herdr-agent-team
