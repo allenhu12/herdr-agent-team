@@ -1,0 +1,89 @@
+# Built-in Team Template: develop.
+# template: true means this file is a seed, not a launchable team.
+# Assemble copies it into <team_dir>/team.yaml only for a NEW team, sets
+# template: false, fills team_id/team_dir/project_root/checkouts/write
+# ceilings, and resolves the effective lead block. See references/assemble.md.
+# Two roots (ADR 0004): project_root is the knowledge base, which holds this
+# team folder and is never split. code_repos lists the source repositories.
+# Shared mode: no worktrees; the implementor is the only role whose
+# write_ceiling holds tracked source paths. Others ask it for code changes.
+schema_version: 2
+template: true
+team_type: develop
+team_id: null
+team_dir: null
+project_root: null      # knowledge root
+checkout_mode: shared
+code_repos: []          # filled at assemble: [{name, path, base_branch, rules_file}]
+protected_paths_extra: []
+permissions: inherit    # agents follow the User's own CLI sandbox/approval config
+lead:
+  name: null            # <task>-lead-<model-label>, set at assemble
+  mode: null            # session | spawned, set at assemble
+  kind: null            # effective values, set at assemble
+  model: null
+  model_label: null
+  profile: null
+  effort: null
+  launch_args: []
+  suggested:            # advice; a launch spec only when the Lead is spawned
+    responsibility: "Design, bug analysis, review, and orchestration."
+    kind: codex
+    model: gpt-6-astra
+    model_label: astra
+    profile: null
+    effort: medium
+integration:
+  checkout_dir: null    # stays null in shared mode: integration = implementor commits
+roles:
+  - name: "<task>-implementor-sol"
+    responsibility: "The only source code writer. Implements the plan and makes code changes other members request by message."
+    kind: codex
+    model: gpt-5.6-sol
+    model_label: sol
+    profile: null
+    effort: medium
+    launch_args: []
+    cli_version: null
+    access: writer
+    checkout_dir: null  # main code repository root
+    position: {direction: right, from: lead}
+    write_ceiling: null  # tracked source paths under code_repos; the only role allowed them
+    up_agent: lead
+    low_agent: []
+    prompt_file: null
+    skills: []
+  - name: "<task>-tester-luna"
+    responsibility: "Builds the test environment and runs the tests."
+    kind: codex
+    model: gpt-5.6-luna
+    model_label: luna
+    profile: null
+    effort: xhigh
+    launch_args: []
+    cli_version: null
+    access: writer
+    checkout_dir: null  # knowledge root; test commands carry an explicit cwd per repository
+    position: {direction: down, from: "<task>-implementor-sol"}
+    write_ceiling: null  # declared generated/cache/output paths per repository only, never tracked source
+    up_agent: lead
+    low_agent: []
+    prompt_file: null
+    skills: []
+  - name: "<task>-writer-opus"
+    responsibility: "Writes documents, draws visual diagrams, explains and answers questions."
+    kind: claude
+    model: opus
+    model_label: opus
+    profile: null
+    effort: medium
+    launch_args: []
+    cli_version: null
+    access: writer
+    checkout_dir: null  # knowledge root
+    position: {direction: down, from: "<task>-tester-luna"}
+    write_ceiling: null  # knowledge-base document paths only; never protected paths or source
+    up_agent: lead
+    low_agent: []
+    prompt_file: null
+    skills: []

@@ -1,0 +1,40 @@
+# Report: <assignment-id>
+
+**Attempt:** 1
+**Status:** ready_for_review | failed
+
+<!-- Write only at a terminal outcome, not while blocked on a question.
+Use a temp file and atomic rename. Status is not Lead acceptance.
+Keep exactly these six content sections. No full logs or entire files. -->
+
+## Result
+
+<Short outcome, including any incomplete part.>
+
+## Frozen commit or artifact path
+
+<Full commit SHA and repository/checkout, one line per code repository
+(`<repo name>: <input SHA> -> <result SHA>`; shared-mode source work before
+the commit gate: `<repo name>: <input SHA> + uncommitted`), or absolute immutable-version path
+and SHA-256 hash/manifest. Reviews also name the exact reviewed version.>
+
+## Files changed
+
+<Paths, including additions/deletions/renames and declared generated outputs.
+For read-only review, state no project changes; list own report artifacts.>
+
+## Test results
+
+<Commands, cwd, tested commit/hash per repository, exit codes, counts when
+available. A tester lists any tracked file a test changed; it does not fix it.
+Use not run/not applicable with reasons. Link evidence rather than full logs.>
+
+## Screenshot paths
+
+<Absolute paths, artifact version, preview URL and server ownership for
+visual work. Otherwise not applicable with a reason.>
+
+## Unresolved issues
+
+<Remaining gaps or none. Include remaining owned processes/resources here.
+No extra top-level sections.>

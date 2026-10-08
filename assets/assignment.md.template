@@ -1,0 +1,80 @@
+# Assignment: <assignment-id>
+
+**Attempt:** 1
+**Assignee:** <role-name>
+**Lead:** <lead-name> → <lead-pane-id>
+**Team dir:** <team_dir>
+**Team state:** <team_dir>/team-state.yaml
+**Checkout Dir:** <absolute-checkout-path>
+**Workspace Dir:** <team_dir>/assignments/<id>
+**Report path:** <team_dir>/assignments/<id>/report.md
+
+## Outcome
+
+<One clear outcome and deliverable. The Sub-Agent inspects the code and
+chooses exact edits; coordinator-generated line numbers are not required.>
+
+## Inputs
+
+<Immutable for this attempt. The Lead compares late signals against these
+lines (dispatch.md, "Late signals").
+- report: <absolute report path>#attempt-<n>   (upstream reports, if any)
+- code: <repo name>@<full input SHA>           (one line per code repository)
+- docs: <absolute knowledge file>@<mtime or hash>
+Shared mode: dirty baseline at <workspace>/artifacts/attempt-<n>/dirty-baseline.tsv.
+Base: full commit SHA and repository identity. For non-git work, absolute
+input snapshot path plus SHA-256 manifest. Keep the original base for the
+full scope audit when a rework starts from a previous attempt's result.
+For review, exact target commit
+or artifact hash. Include any dependency artifact versions. Do not use only
+a branch name. Record approved pre-existing changes; never overwrite them.>
+
+## Acceptance Criteria
+
+- <Observable success criterion>
+- <Real project command, cwd, expected result; source of the command>
+- <Visual work: screenshots and running-page URL tied to the frozen version>
+- <Required independent review, target version, and different actual model>
+
+## Write Scope
+
+<Checkout-relative allowed paths within the role's write_ceiling (absolute
+paths for code repositories and knowledge files in a two-root team). None may
+overlap a protected path. Resolve
+symlinks and .., then check logical path overlap AND checkout exclusivity.
+For a reader, no project writes. Default control writes: own log/report
+and atomic temporary files only. List extra evidence/artifact output paths
+explicitly; these must remain under this Assignment's Workspace Dir.
+Declare build/test caches and generated outputs if needed.>
+
+## Must Not Touch
+
+<Excluded files, other checkouts, shared git configuration, shared state,
+other Assignments, and out-of-scope actions. No push/publish/deploy/production
+or secret exposure without explicit User approval.>
+
+## Final Artifact
+
+<Full result commit SHA per code repository (name@SHA), or absolute versioned
+output path + content hash.
+Shared-mode source work: do not commit. List the changed files per
+repository; the Lead asks for the commit after the commit gate.
+Snapshots of dirty in-scope files: <workspace>/artifacts/attempt-<n>/snapshots/.
+For a review, identify the reviewed version and freeze the review artifact.
+Evidence path: Workspace Dir/artifacts/attempt-<n>/<unique-version>/.
+Do not overwrite a previously submitted version.>
+
+## Partner Authorizations
+
+<Named authorized peer and purpose, or none. Check idle state before contact.
+If working, write own log or use Lead handoff. Log every agreement.
+The Lead's identity is not permission to interrupt its pane.>
+
+## Related Docs
+
+- <absolute/path/to/context>
+
+## Rework History
+
+<Lead-owned, append oldest first. Same Assignment ID, increment attempt,
+maximum three attempts. Record revised starting version and acceptance gaps.>

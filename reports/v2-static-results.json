@@ -1,0 +1,919 @@
+{
+  "scope": "Static package and configured phrase checks only; no Herdr runtime execution.",
+  "checks": {
+    "package": {
+      "exit_code": 0,
+      "result": {
+        "ok": true,
+        "failures": [],
+        "warnings": []
+      }
+    },
+    "boundary": {
+      "exit_code": 0,
+      "result": {
+        "ok": true,
+        "failures": [],
+        "warnings": [],
+        "stats": {
+          "context_budget_tier": "production",
+          "context_budget_limit": 1000,
+          "skill_body_tokens": 796,
+          "other_text_tokens": 18864,
+          "estimated_initial_load_tokens": 971,
+          "estimated_total_text_tokens": 19660,
+          "relevant_file_count": 22,
+          "unused_resource_dirs": [],
+          "quality_signal_points": 70,
+          "quality_density": 72.1
+        }
+      }
+    },
+    "contracts": {
+      "exit_code": 0,
+      "result": {
+        "kind": "static-package-contract",
+        "passed": 16,
+        "total": 16,
+        "failures": []
+      }
+    },
+    "triggers": {
+      "exit_code": 0,
+      "result": {
+        "threshold": 0.7,
+        "threshold_explanation": "Prompts at or above the threshold are treated as trigger matches. Scores are driven primarily by semantic intent coverage: packaging intent, workflow-to-skill transformation intent, reuse/distribution intent, and eval intent. Explicit exclusions such as summary-only, translation-only, one-off, document-only, or do-not-build directives apply direct penalties and can override otherwise similar wording.",
+        "false_positives": 0,
+        "false_negatives": 0,
+        "precision": 1,
+        "recall": 1,
+        "bucket_stats": {
+          "should_trigger": {
+            "total": 9,
+            "passed": 9,
+            "pass_rate": 1
+          },
+          "should_not_trigger": {
+            "total": 5,
+            "passed": 5,
+            "pass_rate": 1
+          },
+          "near_neighbor": {
+            "total": 5,
+            "passed": 5,
+            "pass_rate": 1
+          }
+        },
+        "family_stats": {
+          "task": {
+            "total": 1,
+            "passed": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "pass_rate": 1
+          },
+          "workflow": {
+            "total": 5,
+            "passed": 5,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "pass_rate": 1
+          },
+          "review": {
+            "total": 1,
+            "passed": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "pass_rate": 1
+          },
+          "profile": {
+            "total": 1,
+            "passed": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "pass_rate": 1
+          },
+          "named": {
+            "total": 1,
+            "passed": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "pass_rate": 1
+          },
+          "generic": {
+            "total": 2,
+            "passed": 2,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "pass_rate": 1
+          },
+          "explanation": {
+            "total": 1,
+            "passed": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "pass_rate": 1
+          },
+          "quoted": {
+            "total": 1,
+            "passed": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "pass_rate": 1
+          },
+          "skill-edit": {
+            "total": 2,
+            "passed": 2,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "pass_rate": 1
+          },
+          "primitive": {
+            "total": 1,
+            "passed": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "pass_rate": 1
+          },
+          "server": {
+            "total": 1,
+            "passed": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "pass_rate": 1
+          },
+          "worktree": {
+            "total": 1,
+            "passed": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "pass_rate": 1
+          },
+          "explicit-exclusion": {
+            "total": 1,
+            "passed": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "pass_rate": 1
+          }
+        },
+        "misfires": [],
+        "results": {
+          "should_trigger": [
+            {
+              "prompt": "Use Herdr to complete this task: fix the internal parser.",
+              "family": "task",
+              "score": 1,
+              "predicted_trigger": true,
+              "expected_trigger": true,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [],
+                "exclusive_negative_concepts": [],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.7,
+                "negative_penalty": 0,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr"
+                    ],
+                    "operation": [
+                      "use herdr"
+                    ]
+                  },
+                  "negative": {}
+                }
+              }
+            },
+            {
+              "prompt": "Assemble an agent team via Herdr.",
+              "family": "workflow",
+              "score": 1,
+              "predicted_trigger": true,
+              "expected_trigger": true,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [],
+                "exclusive_negative_concepts": [],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.833,
+                "negative_penalty": 0,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr"
+                    ],
+                    "operation": [
+                      "assemble"
+                    ]
+                  },
+                  "negative": {}
+                }
+              }
+            },
+            {
+              "prompt": "Dispatch this assignment to my Herdr agent team.",
+              "family": "workflow",
+              "score": 1,
+              "predicted_trigger": true,
+              "expected_trigger": true,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [],
+                "exclusive_negative_concepts": [],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.625,
+                "negative_penalty": 0,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr",
+                      "herdr-agent-team"
+                    ],
+                    "operation": [
+                      "dispatch"
+                    ]
+                  },
+                  "negative": {}
+                }
+              }
+            },
+            {
+              "prompt": "Check status of my Herdr agent team.",
+              "family": "workflow",
+              "score": 1,
+              "predicted_trigger": true,
+              "expected_trigger": true,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [],
+                "exclusive_negative_concepts": [],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.571,
+                "negative_penalty": 0,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr",
+                      "herdr-agent-team"
+                    ],
+                    "operation": [
+                      "check status"
+                    ]
+                  },
+                  "negative": {}
+                }
+              }
+            },
+            {
+              "prompt": "Resume my Herdr team after the Lead restarted.",
+              "family": "workflow",
+              "score": 0.99,
+              "predicted_trigger": true,
+              "expected_trigger": true,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [],
+                "exclusive_negative_concepts": [],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.375,
+                "negative_penalty": 0,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr"
+                    ],
+                    "operation": [
+                      "resume"
+                    ]
+                  },
+                  "negative": {}
+                }
+              }
+            },
+            {
+              "prompt": "Disband the Herdr team.",
+              "family": "workflow",
+              "score": 1,
+              "predicted_trigger": true,
+              "expected_trigger": true,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [],
+                "exclusive_negative_concepts": [],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.75,
+                "negative_penalty": 0,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr"
+                    ],
+                    "operation": [
+                      "disband"
+                    ]
+                  },
+                  "negative": {}
+                }
+              }
+            },
+            {
+              "prompt": "Use Herdr to review commit abc with another model.",
+              "family": "review",
+              "score": 0.996,
+              "predicted_trigger": true,
+              "expected_trigger": true,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [],
+                "exclusive_negative_concepts": [],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.444,
+                "negative_penalty": 0,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr"
+                    ],
+                    "operation": [
+                      "use herdr"
+                    ]
+                  },
+                  "negative": {}
+                }
+              }
+            },
+            {
+              "prompt": "Use Herdr to complete this task with the deepseek-v4-flash profile.",
+              "family": "profile",
+              "score": 1,
+              "predicted_trigger": true,
+              "expected_trigger": true,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [],
+                "exclusive_negative_concepts": [],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.7,
+                "negative_penalty": 0,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr"
+                    ],
+                    "operation": [
+                      "use herdr"
+                    ]
+                  },
+                  "negative": {}
+                }
+              }
+            },
+            {
+              "prompt": "Use herdr-agent-team to assemble a team for this repository.",
+              "family": "named",
+              "score": 1,
+              "predicted_trigger": true,
+              "expected_trigger": true,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [],
+                "exclusive_negative_concepts": [],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.778,
+                "negative_penalty": 0,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr",
+                      "herdr-agent-team"
+                    ],
+                    "operation": [
+                      "use herdr",
+                      "assemble"
+                    ]
+                  },
+                  "negative": {}
+                }
+              }
+            }
+          ],
+          "should_not_trigger": [
+            {
+              "prompt": "Fix the internal parser and tests.",
+              "family": "generic",
+              "score": 0.027,
+              "predicted_trigger": false,
+              "expected_trigger": false,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [],
+                "exclusive_negative_concepts": [],
+                "semantic_coverage": 0,
+                "support_score": 0,
+                "lexical_support": 0.333,
+                "negative_penalty": 0,
+                "coverage_boost": 0,
+                "concept_evidence": {
+                  "positive": {},
+                  "negative": {}
+                }
+              }
+            },
+            {
+              "prompt": "Review this code using another model.",
+              "family": "generic",
+              "score": 0.013,
+              "predicted_trigger": false,
+              "expected_trigger": false,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [],
+                "exclusive_negative_concepts": [],
+                "semantic_coverage": 0,
+                "support_score": 0,
+                "lexical_support": 0.167,
+                "negative_penalty": 0,
+                "coverage_boost": 0,
+                "concept_evidence": {
+                  "positive": {},
+                  "negative": {}
+                }
+              }
+            },
+            {
+              "prompt": "Explain Herdr and how its panes work.",
+              "family": "explanation",
+              "score": 0,
+              "predicted_trigger": false,
+              "expected_trigger": false,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [
+                  "explanation"
+                ],
+                "exclusive_negative_concepts": [
+                  "explanation"
+                ],
+                "semantic_coverage": 0.5,
+                "support_score": 0,
+                "lexical_support": 0.286,
+                "negative_penalty": 1,
+                "coverage_boost": 0,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr"
+                    ]
+                  },
+                  "negative": {
+                    "explanation": [
+                      "explain herdr"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "prompt": "Use Herdr to complete this task is a quoted prompt; evaluate this prompt.",
+              "family": "quoted",
+              "score": 0.02,
+              "predicted_trigger": false,
+              "expected_trigger": false,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [
+                  "skill-edit"
+                ],
+                "exclusive_negative_concepts": [
+                  "skill-edit"
+                ],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.818,
+                "negative_penalty": 1,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr"
+                    ],
+                    "operation": [
+                      "use herdr"
+                    ]
+                  },
+                  "negative": {
+                    "skill-edit": [
+                      "evaluate this prompt",
+                      "quoted prompt"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "prompt": "Edit this skill: herdr-agent-team. Add explicit effort on dispatch.",
+              "family": "skill-edit",
+              "score": 0,
+              "predicted_trigger": false,
+              "expected_trigger": false,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [
+                  "skill-edit"
+                ],
+                "exclusive_negative_concepts": [
+                  "skill-edit"
+                ],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.333,
+                "negative_penalty": 1,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr",
+                      "herdr-agent-team"
+                    ],
+                    "operation": [
+                      "dispatch"
+                    ]
+                  },
+                  "negative": {
+                    "skill-edit": [
+                      "edit this skill"
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "near_neighbor": [
+            {
+              "prompt": "Rename a pane in Herdr.",
+              "family": "primitive",
+              "score": 0.492,
+              "predicted_trigger": false,
+              "expected_trigger": false,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [],
+                "exclusive_negative_concepts": [],
+                "semantic_coverage": 0.5,
+                "support_score": 0,
+                "lexical_support": 0.4,
+                "negative_penalty": 0,
+                "coverage_boost": 0,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr"
+                    ]
+                  },
+                  "negative": {}
+                }
+              }
+            },
+            {
+              "prompt": "Check status of the Herdr server.",
+              "family": "server",
+              "score": 0,
+              "predicted_trigger": false,
+              "expected_trigger": false,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [
+                  "server"
+                ],
+                "exclusive_negative_concepts": [
+                  "server"
+                ],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.5,
+                "negative_penalty": 1,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr"
+                    ],
+                    "operation": [
+                      "check status"
+                    ]
+                  },
+                  "negative": {
+                    "server": [
+                      "herdr server"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "prompt": "Create a git worktree for backend work.",
+              "family": "worktree",
+              "score": 0.023,
+              "predicted_trigger": false,
+              "expected_trigger": false,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [],
+                "exclusive_negative_concepts": [],
+                "semantic_coverage": 0,
+                "support_score": 0,
+                "lexical_support": 0.286,
+                "negative_penalty": 0,
+                "coverage_boost": 0,
+                "concept_evidence": {
+                  "positive": {},
+                  "negative": {}
+                }
+              }
+            },
+            {
+              "prompt": "Evaluate the skill prompt for dispatch through Herdr.",
+              "family": "skill-edit",
+              "score": 0.02,
+              "predicted_trigger": false,
+              "expected_trigger": false,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [
+                  "skill-edit"
+                ],
+                "exclusive_negative_concepts": [
+                  "skill-edit"
+                ],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.75,
+                "negative_penalty": 1,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr"
+                    ],
+                    "operation": [
+                      "dispatch"
+                    ]
+                  },
+                  "negative": {
+                    "skill-edit": [
+                      "evaluate the skill prompt"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "prompt": "Do not use Herdr; assemble agents with the native tool.",
+              "family": "explicit-exclusion",
+              "score": 0,
+              "predicted_trigger": false,
+              "expected_trigger": false,
+              "passed": true,
+              "score_detail": {
+                "mode": "semantic-intent",
+                "desired_positive_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "matched_desired_concepts": [
+                  "herdr",
+                  "operation"
+                ],
+                "extra_positive_concepts": [],
+                "matched_negative_concepts": [
+                  "excluded"
+                ],
+                "exclusive_negative_concepts": [
+                  "excluded"
+                ],
+                "semantic_coverage": 1,
+                "support_score": 0,
+                "lexical_support": 0.5,
+                "negative_penalty": 1,
+                "coverage_boost": 0.04,
+                "concept_evidence": {
+                  "positive": {
+                    "herdr": [
+                      "herdr"
+                    ],
+                    "operation": [
+                      "use herdr",
+                      "assemble"
+                    ]
+                  },
+                  "negative": {
+                    "excluded": [
+                      "do not use herdr"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "historical": {
+      "exit_code": 0,
+      "result": "No output; exit code 0"
+    },
+    "whitespace": {
+      "exit_code": 0,
+      "result": "No output; exit code 0"
+    }
+  }
+}

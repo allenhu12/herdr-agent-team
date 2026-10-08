@@ -1,0 +1,60 @@
+{
+  "positive_concepts": {
+    "herdr": {
+      "weight": 1,
+      "phrases": [
+        "herdr",
+        "herdr-agent-team"
+      ]
+    },
+    "operation": {
+      "weight": 1,
+      "phrases": [
+        "use herdr",
+        "assemble",
+        "dispatch",
+        "check status",
+        "resume",
+        "disband",
+        "create a develop team",
+        "adjust",
+        "herdr team"
+      ]
+    }
+  },
+  "negative_concepts": {
+    "explanation": {
+      "weight": 1,
+      "exclusive": true,
+      "phrases": [
+        "explain herdr",
+        "explanations"
+      ]
+    },
+    "skill-edit": {
+      "weight": 1,
+      "exclusive": true,
+      "phrases": [
+        "edit this skill",
+        "evaluate the skill prompt",
+        "evaluate this prompt",
+        "quoted prompt"
+      ]
+    },
+    "server": {
+      "weight": 1,
+      "exclusive": true,
+      "phrases": [
+        "herdr server"
+      ]
+    },
+    "excluded": {
+      "weight": 1,
+      "exclusive": true,
+      "phrases": [
+        "do not use herdr"
+      ]
+    }
+  },
+  "fallback_positive_concepts": []
+}

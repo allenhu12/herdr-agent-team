@@ -1,0 +1,17 @@
+# Log: <assignment-id>
+
+Append-only. Each entry starts with a `##` header naming the timestamp and
+the role writing it, so a peer or the Lead Agent can tell who said what and
+when.
+
+<!--
+## 2026-08-25T10:05:00Z — dev-backend
+Started work. Read assignment.md and related docs.
+
+## checkpoint — 2026-08-25T10:10:00Z — dev-backend
+Finished repository survey; next step is implement the parser branch.
+
+## 2026-08-25T10:20:00Z — dev-backend
+Messaged tester (authorized partner) about the API contract; agreed on
+response shape. See tester's log.md for their side.
+-->

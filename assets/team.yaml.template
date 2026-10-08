@@ -1,0 +1,62 @@
+# Fill placeholders before Assemble; defaults are choices, not inherited CLI settings.
+schema_version: 2
+template: false          # true only for built-in seeds under assets/teams/
+team_type: null          # built-in template this team was seeded from, or null
+team_id: null            # folder suffix; null = default .herdr-agent-team
+project_root: "/absolute/canonical/project"   # knowledge root; never split in a two-root team
+team_dir: "/absolute/canonical/project/.herdr-agent-team"  # every control path lives here
+# Assemble always writes checkout_mode and code_repos for a new team.
+# Both absent = legacy single-root team (project_root is also the code repo).
+checkout_mode: shared   # default; shared = no worktrees, one source writer per checkout; isolated (only on User request) = one worktree per writer
+code_repos: []           # knowledge-only team: []
+# code_repos:
+#   - name: backend                      # stable key for per-repository records
+#     path: "/absolute/source/backend"   # git repository root
+#     base_branch: main
+#     rules_file: null                   # absolute path to company git rules, or null
+protected_paths_extra: []  # User-added protected paths; core entries are fixed (writer-rules.md)
+permissions: inherit     # inherit = agents follow the User's CLI config; scoped = sandbox flags (identity-and-launch.md)
+lead:
+  name: "<task>-lead-<model-label>"
+  mode: session          # session = this session is Lead; spawned = Lead pane launched by the team
+  # Effective Lead values; the Role Tree renders these. session: observed
+  # values or explicit null. spawned: the verified launch spec.
+  kind: null
+  model: null
+  model_label: null
+  profile: null
+  effort: null
+  launch_args: []        # spawned only
+  suggested: null        # template advice {responsibility, kind, model, model_label, profile, effort}
+integration:
+  checkout_dir: null     # shared mode; isolated needs "/absolute/integration/checkout"
+roles:
+  # One role by default. Add another only for independent work/review or a User roster.
+  - name: "<task>-api-codex"
+    responsibility: "Implements the assigned backend outcome and its tests."
+    kind: codex
+    model: "<explicit-model-id>"
+    model_label: codex
+    profile: null
+    effort: high
+    launch_args: []  # Model/profile/effort flags; permission flags only when permissions: scoped.
+    cli_version: null
+    access: writer  # writer | reader; readers write only their own control outputs.
+    checkout_dir: "/absolute/exclusive/writer/checkout"
+    position:          # fixed chain: role 1 right from lead, role N down from role N-1
+      direction: right
+      from: lead
+    write_ceiling:
+      - "src/backend/**"
+      - "tests/**"
+    up_agent: lead
+    low_agent: []
+    prompt_file: null  # optional absolute path; appended to the opening instruction
+    skills: []         # optional skill names, mentioned in the opening instruction
+# Frontend default: kind claude, model opus, model_label opus, effort high.
+# DeepSeek override: kind codex, model deepseek-v4-flash,
+# profile deepseek-v4-flash, model_label deepseek, effort high.
+# A read-only reviewer uses access: reader and write_ceiling: [].
+# Every checkout has one writer at a time: isolated mode gives each writer its
+# own worktree; shared mode allows only one role with tracked source paths.
+# No credentials in this file.

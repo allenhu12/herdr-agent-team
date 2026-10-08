@@ -1,0 +1,28 @@
+# Handoff: <assignment-id>
+
+**Attempt:** <attempt>
+**Role:** <role-name>
+
+Use two or three short sentences in each section. Do not paste logs or whole
+files.
+
+## Where I am
+<Exact sub-step in progress.>
+
+## Done
+<Parts to trust and not redo, with file paths.>
+
+## Not done
+<Remaining steps, in order.>
+
+## Decisions and why
+<Chosen approach and options tried and dropped.>
+
+## Gotchas
+<Surprising behavior the next session must know.>
+
+## First action next
+<One executable sentence.>
+
+## Open questions
+<What is waited on, and from whom; write "None" when clear.>

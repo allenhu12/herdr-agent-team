@@ -1,0 +1,101 @@
+{
+  "recommended_threshold": 0.7,
+  "should_trigger": [
+    {
+      "text": "Use Herdr to complete this task: fix the internal parser.",
+      "family": "task"
+    },
+    {
+      "text": "Assemble an agent team via Herdr.",
+      "family": "workflow"
+    },
+    {
+      "text": "Dispatch this assignment to my Herdr agent team.",
+      "family": "workflow"
+    },
+    {
+      "text": "Check status of my Herdr agent team.",
+      "family": "workflow"
+    },
+    {
+      "text": "Resume my Herdr team after the Lead restarted.",
+      "family": "workflow"
+    },
+    {
+      "text": "Disband the Herdr team.",
+      "family": "workflow"
+    },
+    {
+      "text": "Use Herdr to review commit abc with another model.",
+      "family": "review"
+    },
+    {
+      "text": "Use Herdr to complete this task with the deepseek-v4-flash profile.",
+      "family": "profile"
+    },
+    {
+      "text": "Use herdr-agent-team to assemble a team for this repository.",
+      "family": "named"
+    },
+    {
+      "text": "Use the herdr agent team skill to create a develop team.",
+      "family": "template"
+    },
+    {
+      "text": "Replace the tester model in my Herdr agent team with gpt-5.6-sol.",
+      "family": "adjust"
+    },
+    {
+      "text": "Add a DeepSeek implementer to my Herdr team.",
+      "family": "adjust"
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "text": "Fix the internal parser and tests.",
+      "family": "generic"
+    },
+    {
+      "text": "Review this code using another model.",
+      "family": "generic"
+    },
+    {
+      "text": "Explain Herdr and how its panes work.",
+      "family": "explanation"
+    },
+    {
+      "text": "Use Herdr to complete this task is a quoted prompt; evaluate this prompt.",
+      "family": "quoted"
+    },
+    {
+      "text": "Edit this skill: herdr-agent-team. Add explicit effort on dispatch.",
+      "family": "skill-edit"
+    }
+  ],
+  "near_neighbor": [
+    {
+      "text": "Rename a pane in Herdr.",
+      "family": "primitive"
+    },
+    {
+      "text": "Check status of the Herdr server.",
+      "family": "server"
+    },
+    {
+      "text": "Create a git worktree for backend work.",
+      "family": "worktree"
+    },
+    {
+      "text": "Evaluate the skill prompt for dispatch through Herdr.",
+      "family": "skill-edit"
+    },
+    {
+      "text": "Do not use Herdr; assemble agents with the native tool.",
+      "family": "explicit-exclusion"
+    },
+    {
+      "text": "Draw an org chart for my team.",
+      "family": "diagram"
+    }
+  ]
+}

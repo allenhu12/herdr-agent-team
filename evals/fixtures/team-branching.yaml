@@ -1,0 +1,12 @@
+# Negative fixture: breaks the fixed pane chain (two roles split right from
+# lead) and uses an effort Codex does not accept. The renderer must refuse it.
+schema_version: 2
+template: false
+team_type: develop
+team_id: bad
+lead: {name: bad-lead-astra, mode: session, kind: null, model: null, effort: null}
+roles:
+  - {name: bad-dev-sol, kind: codex, model: gpt-5.6-sol, effort: medium, access: writer,
+     position: {direction: right, from: lead}}
+  - {name: bad-test-luna, kind: codex, model: gpt-5.6-luna, effort: max, access: writer,
+     position: {direction: right, from: lead}}

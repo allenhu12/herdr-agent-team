@@ -1,0 +1,20 @@
+interface:
+  display_name: Herdr Agent Team
+  short_description: Coordinate named agents in Herdr panes
+  default_prompt: Use $herdr-agent-team to complete this task through Herdr.
+compatibility:
+  canonical_format: agent-skills
+  adapter_targets: [openai, claude, generic]
+  activation:
+    mode: manual
+  execution:
+    context: inline
+    shell: bash
+  trust:
+    source_tier: local
+    remote_inline_execution: forbid
+    remote_metadata_policy: allow-metadata-only
+  degradation:
+    openai: Requires Herdr CLI and host background task handles.
+    claude: Requires Herdr CLI and background Bash task handles.
+    generic: Requires Herdr CLI and a host wait facility; use foreground for sole work.
