@@ -6,10 +6,12 @@ Assignments, sends them to Sub-Agents in Herdr panes, monitors completion,
 reviews frozen results, and verifies the integrated result. Sub-Agents do
 routine implementation; the Lead can integrate accepted commits and run checks.
 
-## Requirements and invocation
+This guide is the full manual. For what the skill is, what you need, and
+how to install it, read the [README](README.md) first.
 
-Run inside Herdr (`HERDR_ENV=1`) with the Herdr CLI/skill and the selected
-agent CLIs installed. Ask, for example:
+## Invocation
+
+Ask for a team in plain words, for example:
 
 > Use Herdr to complete this task: improve the internal parser and its tests.
 > Use Codex with my deepseek-v4-flash profile.
@@ -252,6 +254,81 @@ lead  [template suggestion]
 The layout is fixed: the Lead on the left, Sub-Agents stacked top to
 bottom on the right. Effort must be valid for the kind. Codex has no
 `max`, so a Codex role set to `max` fails preflight.
+
+### Example: a develop team at work
+
+This example uses the develop template with two members: an implementor
+and a tester. You call the team `login`. The task is a login page.
+
+Ask for the team, then remove the writer role you do not need:
+
+> Use the herdr agent team skill to create a develop team called login.
+> Answer yes when asked if this session should be the Lead.
+
+> Remove the writer from the login team.
+
+The screen has three panes. The Lead is on the left. The two members are
+stacked on the right. Each pane shows its agent name, so you can tell the
+roles apart.
+
+```text
++---------------------------+-----------------------------------+
+| login-lead-opus           | login-implementor-sol             |
+| role: Lead (this session) | role: implementor                 |
+|                           | codex · gpt-5.6-sol · medium      |
+| - wrote assignment        |                                   |
+|   login-impl              | - editing src/auth/login.ts       |
+| - watcher running in the  | - editing src/auth/login.test.ts  |
+|   background              | - state: working                  |
+| - waiting for report.md   |                                   |
+|                           +-----------------------------------+
+| state: waiting            | login-tester-luna                 |
+|                           | role: tester                      |
+|                           | codex · gpt-5.6-luna · xhigh      |
+|                           |                                   |
+|                           | - waits for the Lead to accept    |
+|                           |   the implementor's work          |
+|                           | - state: idle                     |
++---------------------------+-----------------------------------+
+```
+
+The Lead pane is always on the left. The implementor is always on top on
+the right. The tester is always below it.
+
+A short time later, the implementor has written its `report.md`. The Lead
+accepted it and sent the tester its Assignment. The roles swap work:
+
+```text
++---------------------------+-----------------------------------+
+| login-lead-opus           | login-implementor-sol             |
+| role: Lead (this session) | role: implementor                 |
+|                           |                                   |
+| - accepted login-impl     | - report.md written               |
+|   (checked scope and      | - frozen commit recorded          |
+|   diff)                   | - state: idle                     |
+| - sent login-test         |                                   |
+| - waiting for report.md   +-----------------------------------+
+|                           | login-tester-luna                 |
+| state: waiting            | role: tester                      |
+|                           |                                   |
+|                           | - running the project's tests     |
+|                           | - writes only test output paths   |
+|                           | - state: working                  |
++---------------------------+-----------------------------------+
+```
+
+What to see in the diagram:
+
+- Only the implementor edits source code. If the tester finds a bug, it
+  reports it. The Lead passes the fix to the implementor.
+- The Lead does not work on the code. It writes Assignments, waits for
+  reports, checks them, and talks to you.
+- A pane that says `idle` is not broken. It has no Assignment right now.
+- At the end, the Lead shows you the files to commit. Nothing goes into
+  git without your answer.
+
+The [Team Templates Guide](team-templates-guide.md) walks through the same
+team from the first request to Disband.
 
 ### This session as Lead, or a separate Lead pane
 
