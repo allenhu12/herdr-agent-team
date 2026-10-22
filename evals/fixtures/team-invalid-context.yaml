@@ -1,0 +1,8 @@
+schema_version: 2
+team_type: fixture
+roles:
+  - name: fixture-tester
+    kind: codex
+    effort: medium
+    position: {direction: right, from: lead}
+    context_roots: relative/framework

@@ -48,6 +48,7 @@ Two failure shapes, handled differently:
 - **Gone** (pane closed, agent exited): rebuild the role from scratch using
   Assemble's pane-split/agent-start/opening-instruction sequence
   (`assemble.md` steps 3–5, including preflight and header verification).
+  If it has `context_roots`, perform Assemble's bounded read after READY.
   Verify and reuse its recorded checkout; do not discard interrupted edits
   or recreate it from the original base. If missing, inspect frozen artifacts
   and logs and report any unrecoverable uncommitted work before continuing.
@@ -59,6 +60,9 @@ Two failure shapes, handled differently:
 
 Roles that are alive and pass validation are left untouched — resume never
 recreates something that's already correctly in place.
+For an idle role whose context configuration changed, use Assemble's
+bounded reminder before its next context-dependent dispatch. Do not prompt
+a working role to refresh context.
 
 ## 3. Continuation instruction and watcher, together
 
@@ -87,7 +91,12 @@ resumes unwatched.
   straight to the acceptance protocol in `dispatch.md` instead of sending a
   continuation prompt at all. Otherwise, recheck the configuration/checkout
   gates before backgrounding a continuation prompt. If unverified, record
-  the unresolved gate and send nothing. Run `watch-assignment.sh` with the
+  the unresolved gate and send nothing. For an Assignment with frozen
+  context Inputs, compare each current root version with the recorded
+  version before continuation. A change follows
+  Dispatch's late-signal procedure; a missing root blocks continuation
+  without discarding the Assignment or pane. Then run
+  `watch-assignment.sh` with the
   continuation prompt as its fifth argument, exactly like a fresh dispatch
   — the script's opening move is `agent prompt --wait` as one call, never a
   bare separate `agent wait`, for the same idle-race reason described in

@@ -152,6 +152,14 @@ to that template's folder. In a real team.yaml it is always an absolute
 path: Assemble resolves a relative template path when it seeds the team,
 and the interview and Adjust accept only absolute paths.
 
+Roles may also declare `context_roots`: a list of distinct, non-empty
+absolute directory paths. An absent field means `[]`. The real team.yaml
+is the source of truth; this field is not copied into team-state.yaml.
+The Lead checks existence before launching a new role or dispatching work
+that depends on a root. A root is reading context, not permission to run
+commands or write files there. See Assemble for the bounded first read and
+Dispatch for versioned Assignment Inputs.
+
 One entry per Sub-Agent role:
 name, responsibility, kind, model, model_label, optional profile (null if
 unused), explicit effort, resolved launch_args, cli_version, access

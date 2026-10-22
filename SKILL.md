@@ -1,6 +1,6 @@
 ---
 name: herdr-agent-team
-description: "Coordinate an agent team via Herdr when explicitly asked to create a <team-type> team, assemble, dispatch, check status, resume, adjust (add/remove/replace a role's model or effort), disband, or 'Use Herdr to complete this task'. Do not activate for generic coding, explanations, or requests to review/edit this skill or a quoted prompt. Requires HERDR_ENV=1 and the Herdr CLI."
+description: "Coordinate an agent team via Herdr when explicitly asked to create a named team, assemble, dispatch, check status, resume, adjust (add/remove/replace a role's model or effort), disband, or 'Use Herdr to complete this task'. Do not activate for generic coding, explanations, or requests to review/edit this skill or a quoted prompt. Requires HERDR_ENV=1 and the Herdr CLI."
 ---
 
 # herdr-agent-team
@@ -51,7 +51,8 @@ Read these rules with the selected workflow:
   shared or isolated checkout mode, protected paths,
   scope grants, report ownership, and restricted peer contact.
 - [state-files.md](references/state-files.md): canonical paths, v2 schemas,
-  Lead identity, atomic writes, legacy migration, optional task-relay links.
+  Lead identity, optional role `context_roots`, atomic writes, legacy
+  migration, and optional task-relay links.
 - [monitoring.md](references/monitoring.md): prompt/wait race prevention,
   current-attempt reports, exceptions, and cancellation proof.
 - Before each question to the User, refresh `lead-handoff.md`. Refresh it

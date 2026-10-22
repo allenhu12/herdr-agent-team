@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Static package-contract checks. Does not launch Herdr or test agent behavior."""
 import importlib.util
+import copy
 import json
 import re
 import subprocess
@@ -78,6 +79,8 @@ def main():
           team.get("permissions") == "inherit")
     check("role templates carry prompt_file and skills hooks",
           all("prompt_file" in r and isinstance(r.get("skills"), list) for r in roles))
+    check("generic role contexts are empty and portable",
+          all(r.get("context_roots") == [] for r in roles))
 
     handoff = read("assets/handoff.md.template")
     handoff_sections = re.findall(r"^## (.+)$", handoff, re.M)
@@ -107,6 +110,25 @@ def main():
     rrt = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(rrt)
     check("generic template passes fixed chain and effort rules", not rrt.validate(team), rrt.validate(team))
+    legacy = copy.deepcopy(team)
+    for role in legacy["roles"]:
+        role.pop("context_roots", None)
+    check("legacy v2 roles without context_roots remain valid", not rrt.validate(legacy), rrt.validate(legacy))
+    with_context = copy.deepcopy(team)
+    with_context["roles"][0]["context_roots"] = ["/sample/context"]
+    rendered = rrt.render(with_context)
+    check("absolute context root renders marker without path",
+          not rrt.validate(with_context) and "[context]" in rendered
+          and "/sample/context" not in rendered, rrt.validate(with_context))
+    for label, bad_roots in (("scalar", "/sample/context"),
+                             ("relative", ["relative/path"]),
+                             ("empty", [""]),
+                             ("duplicate", ["/sample/context", "/sample/context/"])):
+        invalid = copy.deepcopy(team)
+        invalid["roles"][0]["context_roots"] = bad_roots
+        check(f"renderer rejects {label} context_roots",
+              any("context_roots" in error for error in rrt.validate(invalid)),
+              rrt.validate(invalid))
 
     seeds = sorted((ROOT / "assets/teams").glob("*/team.yaml"))
     check("at least the develop seed exists", any(p.parent.name == "develop" for p in seeds))
@@ -124,6 +146,8 @@ def main():
         check(f"{label}: roles carry required keys and hooks",
               bool(seed.get("roles")) and all(seed_role <= r.keys() for r in seed["roles"]))
         check(f"{label}: fixed chain and effort valid for kind", not rrt.validate(seed), rrt.validate(seed))
+        check(f"{label}: context roots default to empty",
+              all(r.get("context_roots") == [] for r in seed["roles"]))
         check(f"{label}: states both checkout_mode and code_repos (ADR 0004)",
               seed.get("checkout_mode") in ("shared", "isolated")
               and isinstance(seed.get("code_repos"), list)
@@ -176,6 +200,12 @@ def main():
                           str(ROOT / "evals/fixtures/team-branching.yaml")], capture_output=True, text=True)
     check("renderer rejects branching layout and bad effort",
           bad.returncode == 2 and "fixed chain" in bad.stderr and "not valid for kind" in bad.stderr, bad.stderr)
+    bad_context = subprocess.run([sys.executable, str(ROOT / "assets/render-role-tree.py"),
+                                  str(ROOT / "evals/fixtures/team-invalid-context.yaml")],
+                                 capture_output=True, text=True)
+    check("renderer CLI rejects malformed context fixture",
+          bad_context.returncode == 2 and "context_roots" in bad_context.stderr,
+          bad_context.stderr)
 
     report = read("assets/report.md.template")
     sections = re.findall(r"^## (.+)$", report, re.M)

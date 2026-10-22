@@ -127,3 +127,15 @@ benchmark or blind holdout. Report its limitations alongside its counts.
 | V4-05 | New Lead session runs Resume | Reads lead-handoff.md first; reports differences from state; team-state wins |
 | V4-06 | Project uses task-relay | progress.log has pointer; item log has rotation line; Lead alone moves a Gotcha to memory.md |
 | V4-07 | Watcher sees `HANDOFF READY` | Emits `handoff` once for current attempt; Lead runs Rotate |
+
+## Role context roots
+
+| ID | Trigger | Pass evidence |
+|---|---|---|
+| C-01 | Launch a role with a safe local fixture in `context_roots` | Preflight checks the directory; opening instruction names the root; after READY, a separate bounded read identifies the fixture README and relevant section before dependent dispatch |
+| C-02 | Reuse an idle role after its context configuration changes | Same pane and identity; bounded reminder completes before dependent dispatch; no second role starts |
+| C-03 | Resume a working role with context roots | No context prompt interrupts the turn; the active Assignment remains authoritative |
+| C-04 | Resume or Rotate a rebuilt role | New process reads the bounded index again; frozen Assignment root version is compared before continuation |
+| C-05 | Dispatch a context-dependent tester Assignment | Inputs include `context: <root>@<version>` and dirty selected-file hashes when needed; Related Docs list selected files only; no copied source or secret values |
+| C-06 | Root is missing before a new launch or dependent dispatch | New launch fails before pane creation; existing pane and active work remain; dependent dispatch waits for correction or explicit alternative |
+| C-07 | Role has `context_roots: []` and receives unrelated work | No context read or context Inputs; ordinary dispatch works |

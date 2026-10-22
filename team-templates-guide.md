@@ -369,6 +369,25 @@ name. For now, the skill only mentions them in the first instruction.
 Put prompt files in the template's `prompts/` folder. The skill stores
 their absolute paths when it creates a team.
 
+### Local context for a role
+
+Add `context_roots` to a real team's role when its tasks need a local
+repository or documentation directory. Use absolute paths; leave the
+built-in template defaults as `[]`. For example, set a tester role to:
+
+```yaml
+context_roots:
+  - /absolute/path/to/test-framework
+```
+
+The Lead validates the directory before launch. After the role's READY
+reply, it asks for a small first read, starting with README.md when
+available. A related Assignment records the root and version in Inputs,
+then lists only the needed files in Related Docs. The role reads those
+files before relevant commands. An unrelated Assignment can omit the
+root. `context_roots` grants no extra write or device access. A missing
+path blocks only new work that needs it; active work stays intact.
+
 ## Known limits
 
 These limits were found in live tests on 2026-09-11. See

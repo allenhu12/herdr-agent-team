@@ -31,11 +31,14 @@ Decide this only after step 1's inventory.
     order; positions follow the fixed chain. Resolve every relative
     `prompt_file` against the template's folder and store the absolute
     path; a missing file fails preflight.
+    Keep each role's `context_roots` list (absent means `[]`); do not add
+    a machine-specific root to a distributed template.
   - Not found: interview the User one question at a time, each with a
     default: number of Sub-Agents (default 1); then, only when the Lead
     will be spawned (2b), Lead kind, model, effort; then per Sub-Agent:
     role word, one-line responsibility, kind, model, effort, and writer
-    or reader, and an optional absolute `prompt_file` path. Do not ask
+    or reader, an optional absolute `prompt_file` path, and any
+    User-supplied context directories. Do not ask
     for positions; they follow the fixed chain.
     Render the Role Tree preview and ask for one confirmation.
     After a successful assemble, offer once to save it as
@@ -106,6 +109,13 @@ Stop on a failure before creating any pane:
   version using identity-and-launch.md, including required profile checks.
 - write_ceiling is present and a list of path/glob strings, including an
   explicit empty list for a reader. Missing/scalar/map values are errors.
+- Every `context_roots` value is a list of distinct, non-empty absolute
+  directory paths (absent means `[]`). Before a new role is launched,
+  check that each configured directory exists. Name a missing path and
+  stop before pane creation. The renderer checks shape but not existence.
+  For a live reused role, keep its pane and active work; block only new
+  context-dependent dispatch until the missing path is corrected or the
+  User provides an explicit alternative.
 - access is writer or reader; all checkout paths are absolute and normalized.
 - Checkout layout (state-files.md, writer-rules.md "One writer per
   checkout"). `checkout_mode` and `code_repos` are both present or both
@@ -241,9 +251,24 @@ send the following (this establishes identity, not an implementation task):
 - If the role has `prompt_file`, append that file's content verbatim
   after these points. If it has `skills`, add one line: "Use these skills
   when relevant: <names>." Nothing else changes when both are empty.
+- If the role has `context_roots`, name each absolute root and say it is
+  task context only. Keep the opening reply and READY handshake unchanged;
+  do not paste repository contents into the identity instruction.
 
 Observe the opening prompt's result; do not label it idle on a timeout or
 block. Resolve through monitoring.md before dispatching work.
+
+After READY, send an idle configured role a separate bounded context-read
+prompt. Have it read each root's README.md first when present (or a small
+top-level index), then identify the sections relevant to its role. Use
+`rg --files` and `rg -n` for navigation; read only relevant sections of
+large files. If an index exceeds 8 KB, read its headings and relevant
+section first. Do not load a whole repository tree, secret files, credentials,
+or login transcripts. Wait for this read to finish before a
+context-dependent Assignment. When reusing an idle role whose configured
+roots are new or changed, send this reminder and repeat the bounded read
+when uncertain. Never interrupt a working role; its active Assignment
+remains authoritative, and new context belongs in the next Assignment.
 
 ## 6. Record, render, and report
 

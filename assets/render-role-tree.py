@@ -8,6 +8,7 @@ team.yaml always renders the same tree. Exit 2 when team.yaml breaks the
 fixed pane chain or uses an effort level the role's kind does not accept.
 """
 import sys
+from os.path import normpath
 from pathlib import Path
 
 import yaml
@@ -53,8 +54,28 @@ def effort_errors(team):
     return errors
 
 
+def context_root_errors(team):
+    errors = []
+    for role in team.get("roles") or []:
+        roots = role.get("context_roots", [])
+        name = role.get("name")
+        if not isinstance(roots, list):
+            errors.append(f"{name}: context_roots must be a list of absolute directories")
+            continue
+        seen = set()
+        for root in roots:
+            if not isinstance(root, str) or not root.strip() or not Path(root).is_absolute():
+                errors.append(f"{name}: context_roots entries must be non-empty absolute paths")
+                continue
+            normalized = normpath(root)
+            if normalized in seen:
+                errors.append(f"{name}: context_roots contains a duplicate root")
+            seen.add(normalized)
+    return errors
+
+
 def validate(team):
-    return chain_errors(team) + effort_errors(team)
+    return chain_errors(team) + effort_errors(team) + context_root_errors(team)
 
 
 def _v(value):
@@ -88,6 +109,7 @@ def render(team):
         last = i == len(roles) - 1
         branch, cont = ("`-- ", "    ") if last else ("+-- ", "|   ")
         mark = "  [prompt]" if r.get("prompt_file") else ""
+        mark += "  [context]" if r.get("context_roots") else ""
         out.append("|")
         out.append(f"{branch}{_v(r.get('name'))}{mark}")
         out.append(f"{cont}  {_v(r.get('kind'))} · {_v(r.get('model'))} · "

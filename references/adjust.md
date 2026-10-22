@@ -32,7 +32,9 @@ the current Lead runs Adjust. A Launcher after handoff refuses it.
 ## Add a role
 
 1. Resolve the new role like assemble.md step 2c. A `prompt_file`, if
-   given, must be an absolute path to an existing file. Append the role
+   given, must be an absolute path to an existing file. Optional
+   `context_roots` default to `[]`; validate their shape and existence
+   through Assemble before launch. Append the role
    to the end of the role order. Its position is `down` from the current last role, or
    `right` from `lead` if it is the only role.
 2. Preflight (shared rule 2).
@@ -86,11 +88,23 @@ source writer's model instead.
    Assignment's assignee to the new name, and keep the old name on
    finished Assignments. Rename the pane label to match.
 6. Send the opening instruction. The agent loses its in-session memory;
-   Assignment files carry the context.
+   Assignment files carry the context. If `context_roots` are configured,
+   complete Assemble's bounded read after READY before related dispatch.
 7. Write both files and re-render.
 
 To replace a role session while its Assignment remains running, use
 [Rotate](rotate.md), not this quiet-role replacement procedure.
+
+## Change a role's context roots
+
+Refuse this change for a busy role (shared rule 5). Edit only that role's
+`context_roots` in team.yaml; an absent field means `[]`. Validate shape
+and directory existence through Assemble step 3, then write team.yaml and
+the unchanged team-state.yaml per shared rule 4, and re-render the Role
+Tree. Keep the idle pane and its identity. Send the
+bounded context reminder from Assemble step 5 before the next Assignment
+that depends on a new or changed root. Do not rewrite a settled
+Assignment's frozen Inputs.
 
 ## Replace the Lead
 

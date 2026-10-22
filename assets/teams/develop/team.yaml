@@ -53,6 +53,7 @@ roles:
     low_agent: []
     prompt_file: null
     skills: []
+    context_roots: []
   - name: "<task>-tester-luna"
     responsibility: "Builds the test environment and runs the tests."
     kind: codex
@@ -70,6 +71,7 @@ roles:
     low_agent: []
     prompt_file: null
     skills: []
+    context_roots: []
   - name: "<task>-writer-opus"
     responsibility: "Writes documents, draws visual diagrams, explains and answers questions."
     kind: claude
@@ -87,3 +89,4 @@ roles:
     low_agent: []
     prompt_file: null
     skills: []
+    context_roots: []

@@ -53,6 +53,7 @@ roles:
     low_agent: []
     prompt_file: null  # optional absolute path; appended to the opening instruction
     skills: []         # optional skill names, mentioned in the opening instruction
+    context_roots: []  # optional absolute directories to read as task context
 # Frontend default: kind claude, model opus, model_label opus, effort high.
 # DeepSeek override: kind codex, model deepseek-v4-flash,
 # profile deepseek-v4-flash, model_label deepseek, effort high.

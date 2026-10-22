@@ -21,6 +21,9 @@ lines (dispatch.md, "Late signals").
 - report: <absolute report path>#attempt-<n>   (upstream reports, if any)
 - code: <repo name>@<full input SHA>           (one line per code repository)
 - docs: <absolute knowledge file>@<mtime or hash>
+- context: <absolute context root>@<git HEAD SHA or snapshot hash>
+  (only when this attempt uses a declared context root; record selected
+  file hashes too when the checkout is dirty)
 Shared mode: dirty baseline at <workspace>/artifacts/attempt-<n>/dirty-baseline.tsv.
 Base: full commit SHA and repository identity. For non-git work, absolute
 input snapshot path plus SHA-256 manifest. Keep the original base for the
@@ -72,7 +75,8 @@ The Lead's identity is not permission to interrupt its pane.>
 
 ## Related Docs
 
-- <absolute/path/to/context>
+- <absolute/path/to/selected/file>  (only files needed for this attempt;
+  read before context-dependent commands; do not copy file content here)
 
 ## Rework History
 

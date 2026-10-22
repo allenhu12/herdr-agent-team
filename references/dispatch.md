@@ -121,6 +121,22 @@ change within an attempt. Include one deliverable, immutable starting version,
 absolute checkout/control paths, exclusions, verification commands with cwd,
 and final artifact format. Let the Sub-Agent inspect code and choose exact
 edits; do not read every file to supply line numbers.
+
+For a task that uses a role's declared `context_roots`, first verify each
+needed directory still exists. Freeze each used root in Inputs as
+`context: <absolute root>@<git HEAD SHA or snapshot hash>`; if a checkout
+is dirty, also record hashes for selected files. For a non-Git root, use
+a SHA-256 manifest of the selected files as the snapshot hash. Put only the files needed
+for this attempt in Related Docs, as absolute paths. Tell the role to read
+those files before context-dependent access or test commands. Do not copy
+source text, secrets, or transcripts into the Assignment. Aim to keep the
+selected read small; if it exceeds about 32 KB, record why in the log.
+For unrelated work, omit the root. If a required path is missing, keep
+existing work intact and block the new dispatch until the path is fixed or
+the User gives an explicit alternative. A context root alone grants no
+permission to run a device command. Compare a later root version change
+with frozen Inputs using the late-signal procedure in step 5b.
+
 **This file must exist on disk before the prompt is
 sent** — the prompt itself is nothing more than "go read your
 assignment.md," so a restart can always recover the original ask from disk
