@@ -61,7 +61,8 @@ source writer's model instead.
 3. Stop the agent and close its pane only if `created_by_team` is true.
    Otherwise leave the pane and report it.
 4. Delete the role from team.yaml. Move its state record to the archive
-   with a timestamp. Queued Assignments for it stay recorded, marked
+   with `archive-state.py archive <team_dir> --remove-role <name>`
+   (state-files.md). Queued Assignments for it stay recorded, marked
    `held: role removed`, and are listed in the report; never drop them.
 5. Surviving panes keep their places. The recomputed positions describe
    the chain in team.yaml for future launches and rebuilds; they do not

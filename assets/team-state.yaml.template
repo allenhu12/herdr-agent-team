@@ -1,6 +1,7 @@
 # Lead-Agent-owned. Atomic replacement on every transition.
 schema_version: 2
 updated_at: null
+skill_version: null   # SKILL.md metadata.version at the last Assemble
 project_root: "/absolute/canonical/project"
 team_dir: "/absolute/canonical/project/.herdr-agent-team"  # must equal team.yaml team_dir
 lead:
@@ -48,12 +49,19 @@ assignments: []
 #   dirty_at_dispatch: [{repo: backend, path: src/app.js, snapshot: "<workspace>/artifacts/attempt-<n>/snapshots/backend/src/app.js"}]
 #   commit: {status: none, confirmed_files: [], approved_by: null, approved_at: null}
 # Pending records may be queued with dispatched_at: null; never overwrite an active item.
+# A report held for an open question records:
+#   deferred: {question: q-<n>, report_attempt: <n>, noted_at: "<timestamp>"}
 commit_approval:        # shared mode only; see acceptance.md "Commit gate"
   mode: ask             # ask | auto; only the User's own words set auto
   granted_by_words: null
   granted_at: null
 commit_log: []
 # Each: assignment_id, repository, sha, files, approved_by (user | auto), at.
+user_question_seq: 0     # last q-<n> number used
+pending_user: []
+# Each: id (q-<n>), asked_at, question (one line), blocks: [assignment ids],
+#       status (open | answered), answered_at, answer (one line).
+# See dispatch.md "5c. Waiting on the User".
 monitors: []
 # Each: assignment_id, attempt, assignee, task_handle (host handle, not shell PID),
 #       optional outcome (report | handoff | blocked | unknown | gone | stalled | no_report | timeout).
@@ -63,6 +71,9 @@ integration:
   accepted_artifacts: []
   final_artifact: null
   checks: []
+archive: null
+# archive: {path: "<team_dir>/state-archive.yaml", last_archived_at, counts}
+# Written by assets/archive-state.py; settled history lives in that file.
 resources: []
 # Each: type (pane/worktree/server), id_or_path, owner, created_by_team.
 # Shared mode records no worktrees; User code checkouts are never resources.

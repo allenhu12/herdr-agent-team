@@ -9,7 +9,9 @@ A read-only reconciliation sweep. Nothing in this workflow writes anything.
    pick one.
 1. Read `<team_dir>/team-state.yaml` — the book state: per role, its current Assignment
    (if any), `assignment_status`, `expected_agent_state`.
-   Include the separate lead record and recorded resource inventory. Legacy
+   Include the separate lead record and recorded resource inventory.
+   Do not read `state-archive.yaml`; settled history is not live state.
+   For one past Assignment use `archive-state.py find` (read-only). Legacy
    state without lead identity is flagged as missing; do not migrate it here.
 2. For each role, `herdr agent get <role-name>` — the live Herdr state
    (`working`/`idle`/`done`/`blocked`/`unknown`).
@@ -29,7 +31,11 @@ A table: role / current Assignment id / book state / live state / flag.
 Flag anything inconsistent; otherwise leave it blank.
 Show `Team: <team_dir>` and `Role Tree: <team_dir>/role-tree.md` first,
 then `Lead Agent: <name> → <pane-id>` with its mode (session or spawned), plus role checkout paths and
-unresolved integration/resource state. A missing Lead mapping is explicit.
+unresolved integration/resource state. List each open `pending_user`
+question and each held (`deferred`) report. If `skill_version` is missing
+or differs from SKILL.md's `metadata.version`, say so: roles launched then
+keep that version's opening instruction until Rotate or Resume rebuilds
+them. A missing Lead mapping is explicit.
 
 ## Hard constraint
 

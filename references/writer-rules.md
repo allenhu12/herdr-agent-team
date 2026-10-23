@@ -148,6 +148,7 @@ lease says. There are two layers:
   ```
   <team_dir>/team.yaml
   <team_dir>/team-state.yaml
+  <team_dir>/state-archive.yaml
   <team_dir>/role-tree.md
   <team_dir>/assignments/*/assignment.md
   <project_root>/00-current/**

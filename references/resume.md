@@ -12,7 +12,11 @@ what confirms whether a still-alive agent is genuinely safe to reattach to.
   `<team_dir>/lead-handoff.md` exists, read it first. Then read
   `<team_dir>/team.yaml` (static definition) and
   `<team_dir>/team-state.yaml` (last known snapshot). Stop if their
-  `team_dir` values differ.
+  `team_dir` values differ. Do not read `state-archive.yaml`. An
+  Assignment that lead-handoff.md names but state lacks may be archived:
+  check it with `archive-state.py find` (state-files.md).
+- Read `pending_user`. Open entries stay open; a report held in
+  `deferred` stays held until its question is answered.
 - When the project uses task-relay, read its `progress.log` after
   team-state.yaml. A task left `in_progress` there must match a running
   Assignment with the rotated role on the team side.
@@ -73,7 +77,8 @@ with none of these (a fresh team after Launcher handoff, or a role whose
 work is all terminal or only queued) is verified as in step 2, left
 idle, and gets no prompt and no watcher. Queued records stay queued for a
 later Dispatch. Settled terminal reports that still await acceptance go
-to Dispatch's acceptance protocol, not to a continuation prompt. Apply
+to Dispatch's acceptance protocol, not to a continuation prompt. A
+`deferred` report gets no prompt and no watcher. Apply
 the branches below only to roles with dispatched work.
 
 Before sending anything, `agent get` the role to check its live state — a
@@ -149,6 +154,8 @@ resumes unwatched.
 - Report to the User: who resumed in place, who was rebuilt, who is
   quarantined pending a role-name conflict decision, and who is still
   `blocked` awaiting an answer.
+- Ask every `open` `pending_user` question again, with its id, and list
+  the held reports (dispatch.md, 5c).
 - Include Lead name → pane, unresolved launch/migration gates, and remaining
   checkouts/monitors/servers. Refresh the Lead mapping only after verified
   succession; Sub-Agents locate it through the canonical state path.

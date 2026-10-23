@@ -129,6 +129,8 @@ On wake-up, read the watcher's one JSON line first, then branch on its
 - **`report`** — check `report.md` matches the current `attempt` (the
   script already checked this before exiting, but re-verify against the
   recorded `report_path` before acting on it).
+  - An open `pending_user` entry blocks this Assignment → hold the report
+    (dispatch.md, "5c. Waiting on the User"); do not accept yet.
   - Confirmed → run acceptance (criteria in `dispatch.md`): pass → mark
     `succeeded`, summarize to the User; fail → append the gap to
     `assignment.md`, bump `attempt`, re-dispatch (cap `max_attempts: 3`,

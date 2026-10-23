@@ -5,6 +5,10 @@ Updated: <timestamp>
 ## Current Assignments and monitors
 <Assignment id, attempt, role, state, and monitor handle.>
 
+## Waiting on User
+<None, or each open pending_user id, its one-line question, and the
+Assignments it blocks. Deferred reports: id, attempt, question.>
+
 ## Decisions and why
 <Settled decisions and rejected options.>
 

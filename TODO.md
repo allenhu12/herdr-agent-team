@@ -26,7 +26,8 @@ opening instruction, and `skills` is only mentioned by name.
 
 **Not started.**
 
-## Rotate team-state.yaml
+## Done: archive team-state.yaml history
 
-Every past Assignment stays in team-state.yaml forever. An archive or
-rotation step would keep the file small. Found in the v1 smoke test.
+`assets/archive-state.py` moves settled Assignments, their commit_log
+lines, and old history entries to `<team_dir>/state-archive.yaml`. See
+state-files.md, "Archive settled history".

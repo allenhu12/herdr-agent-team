@@ -127,6 +127,8 @@ benchmark or blind holdout. Report its limitations alongside its counts.
 | V4-05 | New Lead session runs Resume | Reads lead-handoff.md first; reports differences from state; team-state wins |
 | V4-06 | Project uses task-relay | progress.log has pointer; item log has rotation line; Lead alone moves a Gotcha to memory.md |
 | V4-07 | Watcher sees `HANDOFF READY` | Emits `handoff` once for current attempt; Lead runs Rotate |
+| V4-08 | Role passes the 40% warning while on its last sub-step | Writes report.md, no handoff; watcher emits `report`; Lead runs acceptance, not Rotate |
+| V4-09 | Lead drops below 40% mid-acceptance | Finishes the acceptance first; then refreshes lead-handoff.md in full and recommends a new session; below 20% it does this at once |
 
 ## Role context roots
 
@@ -139,3 +141,22 @@ benchmark or blind holdout. Report its limitations alongside its counts.
 | C-05 | Dispatch a context-dependent tester Assignment | Inputs include `context: <root>@<version>` and dirty selected-file hashes when needed; Related Docs list selected files only; no copied source or secret values |
 | C-06 | Root is missing before a new launch or dependent dispatch | New launch fails before pane creation; existing pane and active work remain; dependent dispatch waits for correction or explicit alternative |
 | C-07 | Role has `context_roots: []` and receives unrelated work | No context read or context Inputs; ordinary dispatch works |
+
+## State archive
+
+| ID | Trigger | Pass evidence |
+|---|---|---|
+| A-01 | Accept an Assignment, then run `archive-state.py archive` | Record and its commit_log lines leave team-state.yaml and appear once in state-archive.yaml; monitors and live work are unchanged |
+| A-02 | Resume after archiving, with lead-handoff.md naming an archived id | Resume does not read the archive; `archive-state.py find` shows the record; no continuation prompt for it |
+| A-03 | Adjust removes an idle role | `--remove-role` moves its record; queued Assignments stay with `held: role removed` |
+| A-04 | Disband a team with settled work | team-state.yaml holds the closing record of open work; settled records are in state-archive.yaml; both are kept |
+
+## Waiting on the User
+
+| ID | Trigger | Pass evidence |
+|---|---|---|
+| U-01 | Lead asks the User a question that can change Assignment A | `pending_user` has an open `q-<n>` with A in `blocks`; lead-handoff.md lists it before the question is sent |
+| U-02 | A's report arrives before the answer | Only report existence and attempt are checked; A records `deferred`, stays running, no commit or rework; reply ends with "Waiting on you: q-<n>" |
+| U-03 | B's report arrives meanwhile, B not blocked | B is accepted as usual; the reply still ends with the open question |
+| U-04 | User answers q-<n> | Entry is answered; A's held report goes through acceptance against the answer; `deferred` is cleared |
+| U-05 | Lead restarts while q-<n> is open | Resume asks q-<n> again and lists A's held report; no watcher or prompt for A |

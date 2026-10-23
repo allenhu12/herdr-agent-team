@@ -1,0 +1,52 @@
+# Fixture for assets/archive-state.py. team_dir is replaced by the checker.
+schema_version: 2
+updated_at: "2026-10-01T09:00:00Z"
+project_root: "/sample/project"
+team_dir: "TEAM_DIR"
+lead:
+  name: demo-lead-opus
+  pane_id: "w1:p1"
+lead_history:
+  - {name: old-lead-1, until: "2026-09-01T00:00:00Z"}
+  - {name: old-lead-2, until: "2026-09-02T00:00:00Z"}
+launcher: null
+roles:
+  demo-api-codex:
+    pane_id: "w1:p2"
+    expected_agent_state: idle
+    role_history: []
+    rotations:
+      - {at: "2026-09-03T00:00:00Z", reason: context, handoff_path: "/h/1"}
+      - {at: "2026-09-04T00:00:00Z", reason: context, handoff_path: "/h/2"}
+  demo-old-codex:
+    pane_id: "w1:p3"
+    expected_agent_state: idle
+assignments:
+  - {id: done-1, attempt: 1, assignee: demo-api-codex, assignment_status: succeeded,
+     finished_at: "2026-09-05T00:00:00Z", commit: {status: committed}}
+  - {id: done-2, attempt: 2, assignee: demo-api-codex, assignment_status: failed,
+     finished_at: "2026-09-06T00:00:00Z"}
+  - {id: gate-open, attempt: 1, assignee: demo-api-codex, assignment_status: succeeded,
+     finished_at: "2026-09-07T00:00:00Z", commit: {status: awaiting_user}}
+  - {id: watched, attempt: 1, assignee: demo-api-codex, assignment_status: cancelled,
+     finished_at: "2026-09-08T00:00:00Z"}
+  - {id: live, attempt: 1, assignee: demo-api-codex, assignment_status: running,
+     finished_at: null}
+  - {id: held, attempt: 1, assignee: demo-api-codex, assignment_status: running,
+     finished_at: null, deferred: {question: q-2, report_attempt: 1, noted_at: "2026-09-09T00:00:00Z"}}
+  - {id: queued, attempt: 1, assignee: demo-old-codex, assignment_status: pending,
+     dispatched_at: null, finished_at: null}
+user_question_seq: 3
+pending_user:
+  - {id: q-1, question: "Lock accounts?", blocks: [done-1], status: answered, answer: "No"}
+  - {id: q-2, question: "Keep old API?", blocks: [held], status: answered, answer: "Yes"}
+  - {id: q-3, question: "Ship today?", blocks: [], status: open}
+commit_approval: {mode: ask, granted_by_words: null, granted_at: null}
+commit_log:
+  - {assignment_id: done-1, repository: backend, sha: abc, files: [a.py], approved_by: user, at: "2026-09-05T00:00:00Z"}
+  - {assignment_id: gate-open, repository: backend, sha: def, files: [b.py], approved_by: user, at: "2026-09-07T00:00:00Z"}
+monitors:
+  - {assignment_id: watched, attempt: 1, assignee: demo-api-codex, task_handle: t1}
+  - {assignment_id: live, attempt: 1, assignee: demo-api-codex, task_handle: t2}
+integration: {checkout_dir: null, status: pending, accepted_artifacts: [], final_artifact: null, checks: []}
+resources: []

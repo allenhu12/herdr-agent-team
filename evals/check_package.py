@@ -6,6 +6,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -25,11 +26,54 @@ def read(relative):
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
+def run_archive_fixture():
+    script = str(ROOT / "assets/archive-state.py")
+    with tempfile.TemporaryDirectory() as tmp:
+        state_path = Path(tmp) / "team-state.yaml"
+        original = read("evals/fixtures/team-state-archive.yaml").replace("TEAM_DIR", tmp)
+        state_path.write_text(original, encoding="utf-8")
+
+        def run(*args):
+            return subprocess.run([sys.executable, script, *args], capture_output=True, text=True)
+
+        run("archive", tmp, "--keep", "1")
+        state = yaml.safe_load(state_path.read_text(encoding="utf-8"))
+        raw = state_path.read_text(encoding="utf-8")
+        docs = list(yaml.safe_load_all((Path(tmp) / "state-archive.yaml").read_text(encoding="utf-8")))
+        done1 = next(d["record"] for d in docs if d["record"].get("id") == "done-1")
+        state_path.write_text(original, encoding="utf-8")
+        run("archive", tmp, "--keep", "1")
+        rerun = list(yaml.safe_load_all((Path(tmp) / "state-archive.yaml").read_text(encoding="utf-8")))
+        return {
+            "live_ids": [a["id"] for a in state["assignments"]],
+            "archived_ids": [d["record"]["id"] for d in docs if d["kind"] == "assignment"],
+            "commit_log": [c["assignment_id"] for c in state["commit_log"]],
+            "done1_log": [c["sha"] for c in done1["commit_log"]],
+            "lead_history": [h["name"] for h in state["lead_history"]],
+            "rotations": [r["handoff_path"] for r in state["roles"]["demo-api-codex"]["rotations"]],
+            "questions": [q["id"] for q in state["pending_user"]],
+            "updated_at_is_str": "updated_at: '" in raw,
+            "rerun_docs": len(rerun),
+            "busy_rc": run("archive", tmp, "--remove-role", "demo-api-codex").returncode,
+            "find_rc": run("find", tmp, "done-1").returncode,
+        }
+
+
 def main():
     skill = read("SKILL.md")
     front = yaml.safe_load(skill.split("---", 2)[1])
     interface = yaml.safe_load(read("agents/interface.yaml"))
     check("entrypoint identity", front["name"] == "herdr-agent-team")
+    version = str((front.get("metadata") or {}).get("version") or "")
+    check("SKILL.md carries a semantic version", re.fullmatch(r"\d+\.\d+\.\d+", version), version)
+    top = re.search(r"^## \[?(\d+\.\d+\.\d+)", read("CHANGELOG.md"), re.M)
+    check("CHANGELOG top version equals SKILL.md version", top and top.group(1) == version,
+          top and top.group(1))
+    probe = subprocess.run([sys.executable, str(ROOT / "assets/skill-version.py"), "--changes"],
+                           capture_output=True, text=True)
+    check("skill-version.py prints the version and its changes",
+          probe.returncode in (0, 3) and f"version: {version}" in probe.stdout
+          and f"## {version}" in probe.stdout, probe.stdout + probe.stderr)
     check("interface invocation alignment",
           "$" + front["name"] in interface["interface"]["default_prompt"])
 
@@ -101,6 +145,30 @@ def main():
               for name in ("assignment.md", "handoff.md", "log.md")))
     check("team state template supports rotation history",
           "rotations: []" in read("assets/team-state.yaml.template"))
+    check("team state template names the archive",
+          "archive" in state and state["archive"] is None)
+    check("writer-rules protects the state archive", "<team_dir>/state-archive.yaml" in read("references/writer-rules.md"))
+    archive_results = run_archive_fixture()
+    check("archive moves only settled, unmonitored, gate-closed Assignments",
+          archive_results["live_ids"] == ["gate-open", "watched", "live", "held", "queued"]
+          and archive_results["archived_ids"] == ["done-1", "done-2"], archive_results)
+    check("archive moves commit_log lines with their Assignment",
+          archive_results["commit_log"] == ["gate-open"] and archive_results["done1_log"] == ["abc"],
+          archive_results)
+    check("archive trims history to --keep and keeps timestamps as strings",
+          archive_results["lead_history"] == ["old-lead-2"] and archive_results["rotations"] == ["/h/2"]
+          and archive_results["updated_at_is_str"], archive_results)
+    check("archive moves answered questions only when no report waits on them",
+          archive_results["questions"] == ["q-2", "q-3"], archive_results)
+    check("archive rerun after a crash adds no duplicates", archive_results["rerun_docs"] == 5, archive_results)
+    check("state template records the skill version", "skill_version" in state)
+    check("state template records questions to the User",
+          state.get("pending_user") == [] and state.get("user_question_seq") == 0)
+    check("dispatch holds reports blocked by an open question",
+          "## 5c. Waiting on the User" in read("references/dispatch.md")
+          and "## Waiting on User" in read("assets/lead-handoff.md.template"))
+    check("archive refuses to remove a busy role and finds archived ids",
+          archive_results["busy_rc"] == 2 and archive_results["find_rc"] == 0, archive_results)
     watcher = read("assets/watch-assignment.sh")
     check("watcher emits current-attempt handoff outcome",
           "emit handoff" in watcher and "HANDOFF READY attempt=$attempt" in watcher

@@ -211,6 +211,8 @@ once it returns.
 An outcome from the watcher is only a signal to go check — never proof by
 itself (see `monitoring.md`). On a `report` outcome:
 
+0. Check `pending_user` first. If an `open` entry lists this Assignment in
+   `blocks`, follow "5c. Waiting on the User" and stop here.
 1. Read the recorded absolute `report_path` first and confirm the Assignment
    id and current `attempt`. It is in the canonical Workspace Dir.
 2. **Missing** → not actually done; treat as stuck and follow the "stuck"
@@ -275,6 +277,42 @@ dispatch it should have shaped. Judge it by its content, not its sender:
   recorded version moved.
 
 The Lead spends tokens on this only when new content arrives.
+
+## 5c. Waiting on the User
+
+The Lead often waits for a User answer while reports keep arriving. A
+report must not push the open question out of the Lead's attention, and
+acceptance must not decide what the answer could change.
+
+1. **Record every question.** Before each question the User must answer
+   for work to go on, add one `pending_user` entry: the next `q-<n>`
+   (increment `user_question_seq`), asked_at, the question in one line,
+   `blocks` (each Assignment whose Outcome, Scope, acceptance, commit, or
+   next dispatch the answer can change; may be empty), and
+   `status: open`. Show the id with the question. Then refresh
+   `lead-handoff.md`. The commit gate's question gets an entry too.
+2. **Hold blocked reports.** When a `report` arrives for an Assignment in
+   an open entry's `blocks`, check only that `report.md` exists for the
+   current attempt. Do not read the rest. Record `deferred` on the
+   Assignment, remove its finished monitor, and keep
+   `assignment_status: running`. Do not accept, fail, commit, rework,
+   or dispatch dependent work. Tell the User in one line that the report
+   is held for `q-<n>`.
+3. **Independent reports go on.** A report for an Assignment in no open
+   entry's `blocks` follows step 5 as usual. Do not take any step there
+   that changes a blocked Assignment.
+4. **Repeat the open question.** While any entry is `open`, end every
+   reply to the User with one line per entry: "Waiting on you: q-<n> —
+   <question>". This holds after acceptance work too.
+5. **Match the answer.** On a User message, read `pending_user` first and
+   match the message to an entry by id or content. If it is unclear which
+   question it answers, ask; do not guess. Record `status: answered`,
+   answered_at, and the answer in one line. Apply it through 5b if it
+   changes a running Assignment. Then run step 5 for each Assignment
+   whose `deferred.question` is this id, and clear `deferred`. A deferred
+   report stays valid only for its `report_attempt`.
+6. **Leave settled entries to the archive.** `archive-state.py` moves an
+   answered entry once no Assignment names it in `deferred`.
 
 ## 6. Direct Report
 

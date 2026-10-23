@@ -1,6 +1,8 @@
 ---
 name: herdr-agent-team
-description: "Coordinate an agent team via Herdr when explicitly asked to create a named team, assemble, dispatch, check status, resume, adjust (add/remove/replace a role's model or effort), disband, or 'Use Herdr to complete this task'. Do not activate for generic coding, explanations, or requests to review/edit this skill or a quoted prompt. Requires HERDR_ENV=1 and the Herdr CLI."
+description: "Coordinate an agent team via Herdr when explicitly asked to create a named team, assemble, dispatch, check status, resume, adjust (add/remove/replace a role's model or effort), disband, show the skill version, or 'Use Herdr to complete this task'. Do not activate for generic coding, explanations, or requests to review/edit this skill or a quoted prompt. Requires HERDR_ENV=1 and the Herdr CLI."
+metadata:
+  version: "4.2.0"
 ---
 
 # herdr-agent-team
@@ -10,6 +12,14 @@ Lead pane (one Lead per team). Own direction, decisions, Assignments, acceptance
 and reporting. Sub-Agents implement; do not write routine code yourself.
 Inspect enough context to set outcomes and boundaries; Sub-Agents determine
 exact edits. No coordinator-generated line numbers are required.
+
+## Version
+
+When the User asks which version is in use, run
+`python3 <skill-dir>/assets/skill-version.py --changes` and show its output.
+It needs no Herdr session. Exit 3 means the source folder has another
+version; tell the User to reinstall. Changes per version are in
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Start
 
@@ -55,9 +65,12 @@ Read these rules with the selected workflow:
   migration, and optional task-relay links.
 - [monitoring.md](references/monitoring.md): prompt/wait race prevention,
   current-attempt reports, exceptions, and cancellation proof.
+- Record each question to the User in `pending_user`, hold reports it
+  blocks, and end every reply with the open questions (dispatch.md, 5c).
 - Before each question to the User, refresh `lead-handoff.md`. Refresh it
   after each acceptance and before the next dispatch. When Lead context is
-  below 30%, refresh it in full and recommend a new session that runs Resume.
+  below 40%, wait for the next settled boundary, then refresh it in full and
+  recommend a new session that runs Resume. Below 20%, do that at once.
 
 Acceptance and integration follow [acceptance.md](references/acceptance.md).
 Read reports first; verify frozen artifacts and the integrated result.
@@ -73,6 +86,8 @@ Start team, state, Assignment, report, and log files from [assets/](assets/).
 Render the read-only Role Tree with
 [assets/render-role-tree.py](assets/render-role-tree.py); team.yaml is the
 only source of truth.
+Move settled history out of team-state.yaml with
+[assets/archive-state.py](assets/archive-state.py) (see state-files.md).
 Background all monitoring through [assets/watch-assignment.sh](assets/watch-assignment.sh)
 (see monitoring.md) instead of a bare `agent wait`.
 The [user guide](user-guide.md) gives a worked example; the

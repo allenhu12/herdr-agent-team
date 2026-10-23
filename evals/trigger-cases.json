@@ -48,6 +48,10 @@
     {
       "text": "Add a DeepSeek implementer to my Herdr team.",
       "family": "adjust"
+    },
+    {
+      "text": "Which herdr-agent-team version am I using?",
+      "family": "version"
     }
   ],
   "should_not_trigger": [

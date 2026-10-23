@@ -1,7 +1,9 @@
 # Frozen acceptance and integration
 
 Read with Dispatch. The Lead owns acceptance; a Sub-Agent's ready report
-and Herdr's settled state do not constitute acceptance.
+and Herdr's settled state do not constitute acceptance. Do not start
+acceptance for an Assignment that an open `pending_user` entry blocks
+(dispatch.md, "5c. Waiting on the User").
 
 ## Read the report first
 
@@ -145,7 +147,9 @@ Rerun the project's real checks on the integrated result. Worker test success
 alone is insufficient. Record final commit (or non-git artifact hash), check
 commands/cwd/results, and unresolved issues in `team-state.yaml.integration`.
 An accepted Assignment can be `succeeded` while integration is still pending
-or failed. Do not call the overall task complete until integration checks and
+or failed. Once the Assignment is terminal, its artifact is in
+`integration.accepted_artifacts`, and its monitor is removed, run
+`archive-state.py archive` (state-files.md, "Archive settled history"). Do not call the overall task complete until integration checks and
 required visual/review gates pass. Failures create scoped follow-up work,
 without resetting or evading an existing Assignment's retry cap.
 

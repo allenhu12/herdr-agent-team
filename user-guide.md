@@ -49,7 +49,8 @@ remain the handoff mechanism.
 ```
 canonical-project/.herdr-agent-team/   # team_dir; or .herdr-agent-team-<team-id>
   team.yaml
-  team-state.yaml
+  team-state.yaml                   # live work only
+  state-archive.yaml                # settled history, append-only
   role-tree.md                      # rendered from team.yaml, read-only
   assignments/<id>/
     assignment.md
@@ -384,8 +385,10 @@ are quarantined. Blocked waits are not re-armed in a tight loop.
 
 ### Rotate a role with an active Assignment
 
-When a role warns that less than 25% context remains, it finishes its
-current sub-step, records a checkpoint, writes its handoff, and stops. The
+When a role warns that less than 40% context remains, it finishes its
+current sub-step, records a checkpoint, writes its handoff, and stops. If
+that sub-step was the last one, it writes its report instead, and the Lead
+accepts it as usual. The
 Lead then runs Rotate. For example, an active `parser-api` Assignment can
 continue in a fresh session without changing its ID or attempt:
 

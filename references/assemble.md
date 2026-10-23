@@ -240,9 +240,12 @@ send the following (this establishes identity, not an implementation task):
 - The role owns `<team_dir>/assignments/<id>/handoff.md` for its current
   attempt. It writes the seven-section handoff after a checkpoint when the
   Lead says "Write your handoff now, then stop."; by itself when its CLI
-  shows less than 25% context left; and before a rework rotation requested
+  shows less than 40% context left; and before a rework rotation requested
   before any rework; the Lead decides whether to rotate. Do not start
-  another sub-step after the warning or request.
+  another sub-step after the warning or request. One exception, for the
+  context warning only: if the current sub-step is the last one and only
+  the report remains, finish it and write `report.md` instead of a
+  handoff. The Lead's request always gets a handoff.
   Never write during an unsaved edit or running test. Finish the current
   sub-step, append a `## checkpoint` entry after every finished sub-step,
   then write `handoff.md` atomically and append
@@ -273,7 +276,8 @@ remains authoritative, and new context belongs in the next Assignment.
 ## 6. Record, render, and report
 
 Update role pane, kind, cwd/checkout identity, ownership, process identity,
-model/profile/effort, launch_verification and expected_agent_state. Initialize
+model/profile/effort, launch_verification and expected_agent_state. Set
+`skill_version` to SKILL.md's `metadata.version`. Initialize
 only new records, preserving history and monitors. Include Lead first in the
 roster: name → pane → kind → observed model/effort → status, plus each role's
 checkout. Explicitly label unknown Lead model/effort; do not invent values.

@@ -52,8 +52,9 @@ In a shared-mode team, set `commit_approval.mode` back to `ask`; an
 auto-commit switch never outlives its team.
 
 Write a closing record into `team-state.yaml`: for every Assignment, its
-final outcome and timestamp. This becomes the disband archive — don't delete
-it afterward. Keep `<team_dir>/role-tree.md` beside it as the last
+final outcome and timestamp. Then run `archive-state.py archive` so settled
+records move to `state-archive.yaml`. The two files together are the
+disband archive — don't delete them afterward. Keep `<team_dir>/role-tree.md` beside it as the last
 rendered roster.
 
 ## 6. Close
@@ -64,8 +65,8 @@ it looks related.
 
 ## 7. Report
 
-Confirm disband completion to the User, and point them at the archived
-`team-state.yaml` for the record of what happened.
+Confirm disband completion to the User, and point them at
+`team-state.yaml` and `state-archive.yaml` for the record of what happened.
 Report remaining Lead/other panes, worktrees, monitors, and servers. Do not
 remove worktrees or stop unlisted servers without scoped authorization.
 Update the archive to the observed final pane outcomes without stale current

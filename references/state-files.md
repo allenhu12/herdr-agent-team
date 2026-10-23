@@ -83,6 +83,7 @@ in writer checkouts. Artifacts are versioned, not overwritten during review.
 <team_dir>/                # .herdr-agent-team or .herdr-agent-team-<team-id>
 ├── team.yaml
 ├── team-state.yaml
+├── state-archive.yaml     # Lead-owned, append-only settled history
 ├── role-tree.md           # Lead-owned, rendered from team.yaml, read-only
 ├── lead-handoff.md        # Lead-owned narrative snapshot; refreshed at settled boundaries
 └── assignments/<assignment-id>/
@@ -106,10 +107,13 @@ the difference.
 
 The Lead owns `<team_dir>/lead-handoff.md`. Refresh it atomically after each
 acceptance and before the next dispatch, before every question to the User,
-and in full when the Lead's context is below 30%. Include current
-Assignments, armed monitors, decisions, learned User preferences, and the
-next step. At below 30%, tell the User: "Recommend a new session that runs
-Resume." Start from `assets/lead-handoff.md.template`. Resume reads this
+and in full when the Lead's context is below 40%. Include current
+Assignments, armed monitors, open questions to the User and deferred
+reports, decisions, learned User preferences, and the next step. At below 40%, finish the current acceptance or dispatch first.
+Wait for a settled boundary: no acceptance half done and no prompt sent
+without its watcher. Then refresh in full and tell the User: "Recommend a
+new session that runs Resume." Below 20%, do not wait; refresh and tell the
+User at once. Start from `assets/lead-handoff.md.template`. Resume reads this
 narrative first and then team-state.
 
 Append one `## checkpoint` log entry after every finished Sub-Agent
@@ -205,7 +209,8 @@ in identity-and-launch.md.
 Lead-Agent-owned only. Top level:
 
 - `schema_version`, `updated_at`, absolute `project_root`, absolute
-  `team_dir` (equal to team.yaml's).
+  `team_dir` (equal to team.yaml's), and `skill_version` (SKILL.md's
+  `metadata.version` at the last Assemble; null in older state).
 - `lead`: name, pane_id, kind, cwd, process_identity, identity_verified_at,
   and observed model/effort when available. `lead_history` preserves prior
   identities after validated succession. Alias `lead` resolves here.
@@ -220,7 +225,8 @@ Lead-Agent-owned only. Top level:
   A role may also have `rotations: [{at, reason, handoff_path}]` for
   replacement sessions during a running Assignment.
   Verification fields are timestamped observations, not live state.
-- `assignments`: full active and queued list, each with id, attempt,
+- `assignments`: active, queued, and not yet archived settled records
+  (see "Archive settled history"), each with id, attempt,
   assignee, assignment_status, base_commit or input_snapshot, checkout_dir,
   absolute report_path, artifact, lease, and created/finished timestamps.
   Pending queued records have `dispatched_at: null` and no active lease.
@@ -238,6 +244,13 @@ Lead-Agent-owned only. Top level:
   Disband resets it to `ask`.
 - `commit_log` (shared mode): one entry per source commit made through the
   commit gate: assignment_id, repository, sha, files, approved_by, at.
+- `pending_user` and `user_question_seq`: questions the Lead asked the
+  User and still needs, and the last `q-<n>` number used. Each entry has
+  id, asked_at, a one-line question, `blocks` (Assignment ids the answer
+  can change), status (`open` or `answered`), answered_at, and a one-line
+  answer. An Assignment whose report waits for an answer records
+  `deferred: {question, report_attempt, noted_at}`. Rules are in
+  dispatch.md, "5c. Waiting on the User".
 - `monitors`: assignment_id, attempt, assignee, host task_handle, so a
   wake-up/cancel targets the right work. Not a raw shell PID. The handle
   belongs to a backgrounded `skill/assets/watch-assignment.sh` run (see
@@ -248,6 +261,8 @@ Lead-Agent-owned only. Top level:
 - `integration`: checkout_dir, status, accepted_artifacts, final_artifact,
   checks. Status is pending/running/succeeded/failed/not_applicable, distinct
   from Assignment state. Read-only tasks can use not_applicable with a reason.
+- `archive`: null, or `{path, last_archived_at, counts}` written by
+  `assets/archive-state.py`. It names where settled history lives.
 - `resources`: type, id_or_path, owner, created_by_team for panes, worktrees,
   and servers. Inventory supports reporting, not automatic cleanup. A
   shared-mode team records no worktrees; the User's code checkouts are
@@ -263,6 +278,44 @@ Lead-Agent-owned only. Top level:
 Every transition updates state: dispatch, report, rework, cancel, blocked,
 timeout, re-arm. Write temp-file-then-rename. Preserve unrelated records on
 Assemble/reuse. See `assets/team-state.yaml.template` for field shapes.
+
+## Archive settled history
+
+team-state.yaml holds live work only. Every write reads and rewrites the
+whole file, so settled history moves out to `<team_dir>/state-archive.yaml`.
+Do not edit either file by hand for this. Run:
+
+`python3 skill/assets/archive-state.py archive <team_dir>`
+
+- It moves each Assignment that is `succeeded`, `failed`, or `cancelled`,
+  has `finished_at`, has no `monitors` entry, and has no commit gate in
+  `awaiting_user` or `approved`. The Assignment's `commit_log` lines go
+  with it.
+- It moves each `answered` `pending_user` entry that no Assignment still
+  names in `deferred`.
+- It keeps the newest 3 entries of `lead_history` and of each role's
+  `role_history` and `rotations` (`--keep N` changes this). Older entries
+  move to the archive.
+- `--remove-role <name>` moves one role record out (adjust.md). It refuses
+  a role with running, blocked, or monitored work.
+- The archive is append-only, one YAML document per record. The script
+  writes the archive first, then replaces team-state.yaml atomically. A
+  rerun after a crash skips records that are already archived.
+- It refuses state that is not schema 2 or whose `team_dir` differs.
+  YAML comments in team-state.yaml are not kept.
+
+When to run it: after acceptance settles an Assignment (acceptance.md),
+after Adjust removes a role, and at Disband. Record the Assignment's
+artifact in `integration.accepted_artifacts` before you archive it.
+Never move an archived record back; later work on the same outcome is a
+new Assignment.
+
+Routine workflows never read the archive. To look up one past
+Assignment, run `python3 skill/assets/archive-state.py find <team_dir>
+<assignment-id>`; it prints the live and archived records for that id.
+Do not read the whole archive into context. Assignment IDs stay unique
+across live and archived records, because the workspace directory under
+`assignments/` stays in place.
 
 ## Legacy migration
 

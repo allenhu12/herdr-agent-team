@@ -327,6 +327,7 @@ my-app/
 |---|---|---|
 | `team.yaml` | Lead | The team definition, and the only source of truth |
 | `team-state.yaml` | Lead | Live state: panes, sessions, Assignments, monitors |
+| `state-archive.yaml` | Lead | Settled Assignments and old history, moved out by `assets/archive-state.py` |
 | `role-tree.md` | Lead | The drawn tree; the skill makes it from `team.yaml` |
 | `assignments/<id>/` | Lead and one Sub-Agent | One folder per piece of work |
 

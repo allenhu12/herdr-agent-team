@@ -136,6 +136,10 @@ have static checks only. Their live runtime cases (V4-01 to V4-07) have not
 run. Check `reports/v4-session-handoff-rotate-results.md` before you rely on
 Rotate.
 
+The current version is in SKILL.md (`metadata.version`). Changes per
+version are in [CHANGELOG.md](CHANGELOG.md). Run
+`python3 assets/skill-version.py` to see the version you have installed.
+
 Ideas for later versions are in [TODO.md](TODO.md).
 
 ## Contributing
