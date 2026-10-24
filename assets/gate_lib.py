@@ -21,7 +21,8 @@ from pathlib import Path
 import yaml
 
 PASS, REFUSE, USAGE, CANNOT_TELL = 0, 1, 2, 3
-RESULT_WORD = {PASS: "pass", REFUSE: "refuse", USAGE: "usage", CANNOT_TELL: "cannot_tell"}
+UNACKED = 4  # inbox.py only: delivered but never acknowledged
+RESULT_WORD = {PASS: "pass", REFUSE: "refuse", USAGE: "usage", CANNOT_TELL: "cannot_tell", UNACKED: "unacked"}
 ACTIVE = {"running", "blocked"}
 
 

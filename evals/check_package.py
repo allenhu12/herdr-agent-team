@@ -244,6 +244,7 @@ def main():
           and not any("-developer-" in r["name"] for r in develop["roles"]))
     rules = read("references/writer-rules.md")
     core = ["<team_dir>/team.yaml", "<team_dir>/team-state.yaml", "<team_dir>/role-tree.md",
+            "<team_dir>/inbox/**",
             "<team_dir>/assignments/*/assignment.md", "<project_root>/00-current/**",
             "<project_root>/**/progress*.md", "<project_root>/**/item-list.json"]
     check("writer-rules lists every core protected path",
@@ -267,6 +268,25 @@ def main():
     check("no reference still names exclusive writer checkouts",
           not any("exclusive writer checkouts" in (ROOT / "references" / n).read_text()
                   for n in ("resume.md", "writer-rules.md", "assemble.md")))
+
+    check("roles default to steering prompt", all(r.get("steering") == "prompt" for r in roles))
+    bad_steering = copy.deepcopy(team)
+    bad_steering["roles"][0]["steering"] = "pager"
+    check("renderer rejects an unknown steering value",
+          any("steering" in e for e in rrt.validate(bad_steering)), rrt.validate(bad_steering))
+    inbox_role = copy.deepcopy(team)
+    inbox_role["roles"][0]["steering"] = "inbox"
+    check("renderer marks inbox roles", "[inbox]" in rrt.render(inbox_role))
+    check("scoped launches add the role inbox dir",
+          "--add-dir <team_dir>/inbox/<role>" in read("references/identity-and-launch.md"))
+    monitoring = read("references/monitoring.md")
+    check("monitoring defines steering and the inbox outcomes",
+          "## Steering" in monitoring and "inbox_unacked" in monitoring and "superseded" in monitoring
+          and "stop the watcher, write the new state,\nthen `inbox.py retire`" in monitoring)
+    check("assemble teaches the inbox protocol and stale check",
+          "steering: inbox" in read("references/assemble.md") and "skipped stale" in read("references/assemble.md"))
+    check("watcher keeps prompt steering as the default",
+          'steering=${HAT_STEERING:-prompt}' in watcher and "emit inbox_unacked" in watcher)
 
     generic_prompts = [r.get("prompt_file") for r in roles if r.get("prompt_file")]
     check("real team.yaml prompt_file paths are absolute",

@@ -27,6 +27,15 @@
 #   stalled    agent_prompt_stalled on the opening prompt    -> agent read, see why prompt didn't land
 #   no_report  idle/done twice, one nudge sent, still no report -> stuck branch
 #   timeout    hard deadline reached with no other outcome   -> extend/nudge/escalate
+#   inbox_unacked  (HAT_STEERING=inbox) the nudge was rung HAT_INBOX_RING_MAX times
+#              and never acknowledged                        -> agent read, stuck branch
+#   superseded (HAT_STEERING=inbox) the nudge was refused or retired because
+#              this attempt is no longer current             -> stop; the Lead moved on
+#
+# Steering (optional environment, default keeps the 4.2.0 behavior):
+#   HAT_STEERING=prompt  the one nudge is typed with `agent prompt` (default)
+#   HAT_STEERING=inbox   the nudge goes to the role's inbox through
+#                        inbox.py send; HAT_TEAM_DIR must name the team_dir
 #
 # Never treats a state alone as completion. The only completion signal is
 # report.md matching the current attempt (monitoring.md's "state is a
@@ -39,6 +48,16 @@ ws=${2:?workspace-dir required}
 attempt=${3:?attempt required}
 deadline=${4:-2700}
 prompt=${5:-}
+steering=${HAT_STEERING:-prompt}
+# HAT_HERDR_BIN replaces the herdr executable (tests use a fake one).
+herdr_bin=${HAT_HERDR_BIN:-herdr}
+team_dir=${HAT_TEAM_DIR:-}
+inbox_py="$(cd "$(dirname "$0")" && pwd)/inbox.py"
+nudge_msg=""
+if [ "$steering" = inbox ] && [ -z "$team_dir" ]; then
+  echo "watch-assignment.sh: HAT_STEERING=inbox needs HAT_TEAM_DIR" >&2
+  exit 2
+fi
 
 BLOCKED_HOLD_S=20
 UNKNOWN_HOLD_S=60
@@ -90,7 +109,7 @@ new_handoff() {
 
 # Prints one of: idle working blocked done unknown gone
 state() {
-  out=$(herdr agent get "$role" 2>/dev/null) || { echo gone; return; }
+  out=$("$herdr_bin" agent get "$role" 2>/dev/null) || { echo gone; return; }
   printf '%s' "$out" | python3 -c '
 import json,sys
 try:
@@ -101,11 +120,40 @@ except Exception:
 ' 2>/dev/null || echo gone
 }
 
+# Inbox steering: the one nudge is a durable message. It counts as delivered
+# only when the role moves it into handled/; until then ring it on the
+# inbox ladder. A refused or retired nudge means this attempt is stale.
+inbox_nudge() {
+  inbox_dir="$team_dir/inbox/$role"
+  if [ "$nudged" -eq 0 ]; then
+    nudged=1
+    out=$(python3 "$inbox_py" send --team-dir "$team_dir" --role "$role" --kind nudge \
+      --assignment "$(basename "$ws")" --attempt "$attempt" \
+      --body "Write '$ws/report.md' for attempt $attempt now, following the six-section template, then stop." 2>/dev/null)
+    rc=$?
+    [ "$rc" -eq 1 ] && emit superseded "$1"
+    nudge_msg=$(printf '%s\n' "$out" | tail -n 1 | python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("msg") or "")
+except Exception: print("")' 2>/dev/null)
+    [ -n "$nudge_msg" ] || emit stalled "$1"
+    return
+  fi
+  [ -f "$inbox_dir/retired/$nudge_msg" ] && emit superseded "$1"
+  if [ -f "$inbox_dir/handled/$nudge_msg" ]; then
+    has_report || emit no_report "$1"
+    return
+  fi
+  python3 "$inbox_py" ring --team-dir "$team_dir" --role "$role" >/dev/null 2>&1
+  rc=$?
+  [ "$rc" -eq 4 ] && emit inbox_unacked "$1"
+  [ -f "$inbox_dir/retired/$nudge_msg" ] && emit superseded "$1"
+}
+
 # Opening move: send the prompt and wait for the first lifecycle change,
 # combined in one call so a bare wait can never observe pre-existing idle
 # state and report false completion (see monitoring.md, dispatch.md step 3).
 if [ -n "$prompt" ]; then
-  out=$(herdr agent prompt "$role" "$prompt" --wait --timeout 60000 2>&1)
+  out=$("$herdr_bin" agent prompt "$role" "$prompt" --wait --timeout 60000 2>&1)
   case "$out" in
     *agent_prompt_stalled*) emit stalled unknown ;;
   esac
@@ -140,9 +188,11 @@ while :; do
     idle|done)
       blocked_since=0
       unknown_since=0
-      if [ "$nudged" -eq 0 ]; then
+      if [ "$steering" = inbox ]; then
+        inbox_nudge "$s"
+      elif [ "$nudged" -eq 0 ]; then
         nudged=1
-        herdr agent prompt "$role" "Write '$ws/report.md' for attempt $attempt now, following the six-section template, then stop." \
+        "$herdr_bin" agent prompt "$role" "Write '$ws/report.md' for attempt $attempt now, following the six-section template, then stop." \
           --wait --timeout 60000 >/dev/null 2>&1
       else
         has_report || emit no_report "$s"
@@ -160,5 +210,5 @@ while :; do
 
   # This is the sleep: a short bounded wait, not a busy poll. A real
   # lifecycle change is seen within POLL_S seconds either way.
-  herdr agent wait "$role" --timeout $((POLL_S * 1000)) >/dev/null 2>&1 || true
+  "$herdr_bin" agent wait "$role" --timeout $((POLL_S * 1000)) >/dev/null 2>&1 || true
 done

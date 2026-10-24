@@ -426,7 +426,194 @@ def robustness_cases(check):
         check("a team_dir mismatch gives cannot tell", rc == 3, out)
 
 
+def inbox_env(f, **extra):
+    env = f.env()
+    env.update({"HAT_INBOX_GRACE_S": "0", "HAT_INBOX_RING_MAX": "2", "HAT_INBOX_POLL_S": "0.05"})
+    env.update(extra)
+    return env
+
+
+def inbox(f, *args, env=None):
+    proc = subprocess.run([sys.executable, str(ASSETS / "inbox.py"), *args, "--team-dir", str(f.team_dir)],
+                          capture_output=True, text=True, env=env or inbox_env(f))
+    try:
+        return proc.returncode, json.loads(proc.stdout.strip().splitlines()[-1])
+    except (IndexError, json.JSONDecodeError):
+        return proc.returncode, {"raw": proc.stdout, "stderr": proc.stderr}
+
+
+def herdr_log(f):
+    return json.loads(f.herdr_state.read_text()).get("log", [])
+
+
+def watcher(f, ws, steering, env_extra=None):
+    env = inbox_env(f, HAT_STEERING=steering, HAT_TEAM_DIR=str(f.team_dir))
+    env.update(env_extra or {})
+    proc = subprocess.run(["bash", str(ASSETS / "watch-assignment.sh"), "t-impl-sol", str(ws), "1", "30"],
+                          capture_output=True, text=True, env=env, timeout=120)
+    try:
+        return json.loads(proc.stdout.strip().splitlines()[-1])
+    except (IndexError, json.JSONDecodeError):
+        return {"raw": proc.stdout, "stderr": proc.stderr}
+
+
+def inbox_fixture(tmp):
+    f = Fixture(tmp)
+    f.team["roles"][0]["steering"] = "inbox"
+    f.save()
+    return f
+
+
+def inbox_cases(check):
+    with tempfile.TemporaryDirectory() as tmp:
+        f = inbox_fixture(tmp)
+        box = f.team_dir / "inbox" / "t-impl-sol"
+        rc, out = inbox(f, "send", "--role", "t-impl-sol", "--kind", "note", "--body", "hello")
+        check("inbox send writes 0001.msg and rings an idle role at once",
+              rc == 0 and out["msg"] == "0001.msg" and out["ring"] == "rung"
+              and any("INBOX:" in " ".join(e) for e in herdr_log(f)), out)
+        text = (box / "0001.msg").read_text()
+        check("inbox record carries schema, kind, and body",
+              text.startswith("schema=hat-inbox.v1\n") and "kind=note" in text and text.endswith("--\nhello\n"))
+        (box / "handled").mkdir(exist_ok=True)
+        for n in (2, 3):
+            (box / "handled" / f"{n:04d}.msg").write_text("x")
+        rc, out = inbox(f, "send", "--role", "t-impl-sol", "--kind", "note", "--body", "b", "--no-ring")
+        check("inbox sequence numbers skip handled ones (never reused)", out.get("msg") == "0004.msg", out)
+        procs = [subprocess.Popen([sys.executable, str(ASSETS / "inbox.py"), "send", "--team-dir", str(f.team_dir),
+                                   "--role", "t-impl-sol", "--kind", "note", "--body", f"c{i}", "--no-ring"],
+                                  stdout=subprocess.DEVNULL, env=inbox_env(f)) for i in range(12)]
+        for proc in procs:
+            proc.wait()
+        names = sorted(p.name for p in box.glob("*.msg"))
+        check("concurrent sends get unique contiguous sequence numbers",
+              len(names) == 14 and names[-1] == "0016.msg", names)
+        check("no temp file is ever named *.msg", not any(p.name.startswith(".") for p in box.glob("*.msg")))
+        rc, out = inbox(f, "send", "--role", "t-test-luna", "--kind", "note", "--body", "x")
+        check("inbox send refuses a steering: prompt role", rc == 1, out)
+        rc, out = inbox(f, "send", "--role", "t-test-luna", "--kind", "note", "--body", "check",
+                        "--handshake", "--no-ring")
+        check("Adjust handshake may send one note to a prompt role", rc == 0, out)
+        rc, out = inbox(f, "send", "--role", "t-test-luna", "--kind", "nudge", "--body", "x", "--handshake")
+        check("handshake sends only notes", rc == 2, out)
+
+        for p in box.glob("*.msg"):
+            p.unlink()
+        f.agents["t-impl-sol"]["agent"]["agent_status"] = "working"
+        f.herdr_state.write_text(json.dumps({"agents": f.agents, "log": []}))
+        rc, out = inbox(f, "send", "--role", "t-impl-sol", "--kind", "note", "--body", "busy")
+        check("inbox never rings a working role", out.get("ring") == "deferred" and not herdr_log(f), out)
+        f.agents["t-impl-sol"]["agent"]["agent_status"] = "idle"
+        f.herdr_state.write_text(json.dumps({"agents": f.agents, "log": []}))
+        codes = [inbox(f, "ring", "--role", "t-impl-sol")[0] for _ in range(3)]
+        check("ring rings, rings again after grace, then exits 4 unacknowledged", codes == [0, 0, 4], codes)
+        for p in box.glob("*.msg"):
+            os.replace(p, box / "handled" / p.name)
+        rc, out = inbox(f, "ring", "--role", "t-impl-sol")
+        check("an acknowledged inbox clears the ring state",
+              rc == 0 and out["outcome"] == "empty" and not (box / ".ring-state").exists(), out)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        f = inbox_fixture(tmp)
+        box = f.team_dir / "inbox" / "t-impl-sol"
+        f.agents["t-impl-sol"]["on_prompt"] = {"move_inbox": str(box)}
+        f.save()
+        inbox(f, "send", "--role", "t-impl-sol", "--kind", "tester-window", "--window", "t1",
+              "--window-state", "closed", "--body", "Tester window closed.", "--no-ring")
+        rc, out = inbox(f, "wait-ack", "--role", "t-impl-sol")
+        check("wait-ack delivers to an idle role with no Assignment watcher", rc == 0
+              and out["outcome"] == "inbox_acked", out)
+        f.agents["t-impl-sol"].pop("on_prompt")
+        f.save()
+        inbox(f, "send", "--role", "t-impl-sol", "--kind", "note", "--body", "lost", "--no-ring")
+        rc, out = inbox(f, "wait-ack", "--role", "t-impl-sol")
+        check("wait-ack escalates an unacknowledged message", rc == 4 and out["outcome"] == "inbox_unacked", out)
+        for p in box.glob("*.msg"):
+            os.replace(p, box / "handled" / p.name)
+        f.agents["t-impl-sol"]["statuses"] = ["working", "working", "idle"]
+        f.agents["t-impl-sol"]["on_prompt"] = {"move_inbox": str(box)}
+        f.save()
+        inbox(f, "send", "--role", "t-impl-sol", "--kind", "note", "--body", "after report", "--no-ring")
+        rc, out = inbox(f, "status", "--role", "t-impl-sol")
+        check("status shows a message still pending after its watcher is gone",
+              len(out["roles"]["t-impl-sol"]["pending"]) == 1, out)
+        rc, out = inbox(f, "wait-ack", "--role", "t-impl-sol")
+        check("wait-ack waits out working and rings once the role is idle",
+              rc == 0 and len(herdr_log(f)) == 1, (out, herdr_log(f)))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        f = inbox_fixture(tmp)
+        box = f.team_dir / "inbox" / "t-impl-sol"
+        f.add_assignment("a1", status="running", attempt=2)
+        rc, out = inbox(f, "send", "--role", "t-impl-sol", "--kind", "handoff-request", "--assignment", "a1",
+                        "--attempt", "1", "--body", "Write your handoff now, then stop.")
+        check("send refuses a message for a past attempt", rc == 1 and not list(box.glob("*.msg")), out)
+        inbox(f, "send", "--role", "t-impl-sol", "--kind", "handoff-request", "--assignment", "a1",
+              "--attempt", "2", "--body", "Write your handoff now, then stop.", "--no-ring")
+        f.state["assignments"][0]["attempt"] = 3
+        f.save()
+        rc, out = inbox(f, "ring", "--role", "t-impl-sol")
+        check("ring retires a record whose attempt is no longer current, without ringing",
+              out.get("outcome") == "empty" and (box / "retired/0001.msg").exists()
+              and (box / "retired/0001.reason").exists() and not herdr_log(f), out)
+        f.add_assignment("t1", assignee="t-test-luna", kind="tester", paths=[], outputs=[f"{f.repo}/build/**"])
+        inbox(f, "send", "--role", "t-impl-sol", "--kind", "tester-window", "--window", "t1",
+              "--window-state", "open", "--body", "Tester window open for t1.", "--no-ring")
+        f.state["assignments"][-1]["assignment_status"] = "succeeded"
+        f.save()
+        inbox(f, "ring", "--role", "t-impl-sol")
+        check("a delayed tester-window open after the window closed is retired",
+              (box / "retired/0002.msg").exists(), sorted(p.name for p in box.rglob("*")))
+        inbox(f, "send", "--role", "t-impl-sol", "--kind", "note", "--assignment", "a1", "--attempt", "3",
+              "--body", "n", "--no-ring")
+        rc, out = inbox(f, "retire", "--role", "t-impl-sol", "--assignment", "a1", "--before-attempt", "4",
+                        "--reason", "rework")
+        check("retire moves the Lead-named stale records", out.get("retired") == ["0003.msg"], out)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        ws = f.team_dir / "assignments" / "a1"
+        ws.mkdir(parents=True)
+        f.add_assignment("a1", status="running")
+        out = watcher(f, ws, "prompt")
+        log = herdr_log(f)
+        check("watcher in prompt mode keeps the 4.2.0 typed nudge then no_report",
+              out.get("outcome") == "no_report" and len(log) == 1 and log[0][0] == "prompt"
+              and "Write '" in log[0][2], (out, log))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        f = inbox_fixture(tmp)
+        ws = f.team_dir / "assignments" / "a1"
+        ws.mkdir(parents=True)
+        f.add_assignment("a1", status="running")
+        box = f.team_dir / "inbox" / "t-impl-sol"
+        out = watcher(f, ws, "inbox")
+        check("watcher in inbox mode writes the nudge and escalates when never acknowledged",
+              out.get("outcome") == "inbox_unacked" and (box / "0001.msg").exists()
+              and all("INBOX:" in e[2] for e in herdr_log(f)), (out, herdr_log(f)))
+        (box / "handled").mkdir(exist_ok=True)
+        for p in box.glob("*.msg"):
+            os.replace(p, box / "handled" / p.name)
+        f.agents["t-impl-sol"]["on_prompt"] = {"move_inbox": str(box)}
+        f.save()
+        out = watcher(f, ws, "inbox")
+        check("watcher in inbox mode reports no_report after an acknowledged nudge",
+              out.get("outcome") == "no_report" and (box / "handled/0002.msg").exists(), out)
+        f.agents["t-impl-sol"]["on_prompt"] = {"write": {"path": str(ws / "report.md"),
+                                                         "text": "# Report: a1\n**Attempt:** 1\n"}}
+        f.save()
+        out = watcher(f, ws, "inbox")
+        check("watcher in inbox mode still exits on report", out.get("outcome") == "report", out)
+        (ws / "report.md").unlink(missing_ok=True)
+        f.state["assignments"][0]["attempt"] = 2
+        f.save()
+        out = watcher(f, ws, "inbox")
+        check("watcher nudge after an attempt change is refused: superseded",
+              out.get("outcome") == "superseded", out)
+
+
 def run(check):
+    inbox_cases(check)
     precheck_cases(check)
     baseline_cases(check)
     commit_cases(check)

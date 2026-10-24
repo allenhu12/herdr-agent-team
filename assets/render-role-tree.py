@@ -5,7 +5,8 @@ Usage: render-role-tree.py <team.yaml> > <team_dir>/role-tree.md
 
 team.yaml is the only input. team-state.yaml is never read, so the same
 team.yaml always renders the same tree. Exit 2 when team.yaml breaks the
-fixed pane chain or uses an effort level the role's kind does not accept.
+fixed pane chain, uses an effort level the role's kind does not accept, or
+names a steering value other than inbox or prompt.
 """
 import sys
 from os.path import normpath
@@ -74,8 +75,15 @@ def context_root_errors(team):
     return errors
 
 
+def steering_errors(team):
+    """steering is optional; absent means prompt (identity-and-launch.md)."""
+    return [f"{r.get('name')}: steering must be 'inbox' or 'prompt', not {r.get('steering')!r}"
+            for r in team.get("roles") or []
+            if r.get("steering", "prompt") not in ("inbox", "prompt")]
+
+
 def validate(team):
-    return chain_errors(team) + effort_errors(team) + context_root_errors(team)
+    return chain_errors(team) + effort_errors(team) + context_root_errors(team) + steering_errors(team)
 
 
 def _v(value):
@@ -110,6 +118,7 @@ def render(team):
         branch, cont = ("`-- ", "    ") if last else ("+-- ", "|   ")
         mark = "  [prompt]" if r.get("prompt_file") else ""
         mark += "  [context]" if r.get("context_roots") else ""
+        mark += "  [inbox]" if r.get("steering") == "inbox" else ""
         out.append("|")
         out.append(f"{branch}{_v(r.get('name'))}{mark}")
         out.append(f"{cont}  {_v(r.get('kind'))} · {_v(r.get('model'))} · "
