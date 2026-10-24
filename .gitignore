@@ -1,0 +1,3 @@
+# Live team runtime state (team.yaml, team-state.yaml, handoffs) stays local.
+.herdr-agent-team/
+.herdr-agent-team-*/
