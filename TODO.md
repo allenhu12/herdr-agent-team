@@ -26,6 +26,31 @@ opening instruction, and `skills` is only mentioned by name.
 
 **Not started.**
 
+## Team-level watcher and durable wake queue
+
+**Why:** today each Assignment has its own background watcher, and a Lead
+restart loses every watcher's pending result until Resume re-arms them.
+
+**Sketch:** each Sub-Agent appends events (`report`, `handoff`, `blocked:`,
+`paused:`) to `<team_dir>/assignments/<id>/events.log`. One team-level
+watcher scans every events.log, report.md, and Herdr state, writes each
+event the Lead must act on to `<team_dir>/wake-queue/NNN.wake`, and wakes
+the Lead once. The Lead acknowledges with `ack --through <seq>` after
+handling; an interrupted turn replays the queue (handling must be
+idempotent). Resume then only checks the watcher is alive and drains the
+queue.
+
+**Not now:** it rewrites most of monitoring.md and resume.md and the
+watcher's output contract, and the runtime evidence in `reports/` would
+need re-running. Herdr has no push events, so the Lead still wakes through
+the host's background-task notification.
+
+**Revisit when** a Lead restart or session break loses a watcher result
+that someone had to notice by hand, when five or more Assignments usually
+run at once, or when inbox messages need one scheduler across Assignments.
+
+**Not started.**
+
 ## Done: archive team-state.yaml history
 
 `assets/archive-state.py` moves settled Assignments, their commit_log
