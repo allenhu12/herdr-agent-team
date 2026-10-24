@@ -170,3 +170,25 @@ benchmark or blind holdout. Report its limitations alongside its counts.
 - RC-A2: the implementor edits a file outside its lease. `dirty-baseline.py
   compare --mode accept` refuses and names the path; the Lead escalates to
   the User and resets nothing.
+
+## 4.4.0 steering inbox (not yet run)
+
+Run each case on both Claude Code and Codex roles.
+
+- RC-B1: an idle implementor gets a tester-window `open` message, moves it
+  to handled/, and does nothing else.
+- RC-B2: two doorbells in a row; the second finds the inbox empty and does
+  nothing.
+- RC-B3: `send` while the role is working; no doorbell until it is idle,
+  then `wait-ack` rings and the message is handled.
+- RC-B4: a doorbell is lost (cleared before submit); `wait-ack` rings again
+  and the message is handled.
+- RC-B5: a `steering: prompt` role in the same team behaves as in 4.3.0.
+- RC-B6: Lead restart; Resume finds a pending message and re-arms
+  `wait-ack`.
+- RC-B7: after Rotate the new session does not repeat messages the old
+  session handled.
+- RC-B8: Adjust turns the inbox on for a live role; `steering` changes only
+  after the handshake message is acknowledged.
+- RC-B9: rework retires attempt 1's handoff request; attempt 2 is not
+  affected.

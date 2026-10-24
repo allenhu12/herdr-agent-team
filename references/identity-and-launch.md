@@ -176,6 +176,13 @@ a side effect, a path outside the declared directories, network access, or
 anything the kind classifies as dangerous must still prompt and still
 escalate to the User under the existing rules — nothing here relaxes that.
 
+A role with `steering: inbox` also needs `--add-dir <team_dir>/inbox/<role>`
+(same flag for Claude Code and Codex) so moving a message into `handled/`
+does not prompt. The CLI cannot narrow this to moves only; acceptance
+audits the folder instead (writer-rules.md). Under `inherit` the User's
+own configuration decides; a prompt for the move reaches the Lead as
+`blocked`.
+
 Under `inherit` there are no permission arguments to record; the
 `permissions` field itself is the audit record. Under `scoped`, record the
 resolved permission arguments in `team.yaml.launch_args`

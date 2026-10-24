@@ -251,6 +251,16 @@ send the following (this establishes identity, not an implementation task):
   then write `handoff.md` atomically and append
   `HANDOFF READY attempt=<n>` to `log.md`.
   Set `status.json`'s optional `handoff_ready: true` as a hint. Stop in idle.
+- If the role has `steering: inbox`, add the inbox protocol: its absolute
+  inbox folder `<team_dir>/inbox/<role>/`; the exact doorbell line
+  (`inbox.py doorbell --role <role>` prints it); "When the doorbell
+  arrives, finish the current step, then read every `*.msg` in number
+  order, act on each, and move it into `handled/`. Do not reply to the
+  doorbell itself, and never create, edit, or delete inbox files."; and
+  the stale check: "If a message names an attempt other than the one in
+  your current assignment.md, or a tester window that a later message
+  closed, do not act on it: move it to `handled/` and note `skipped stale
+  <seq>` in your next log entry or report."
 - If the role has `prompt_file`, append that file's content verbatim
   after these points. If it has `skills`, add one line: "Use these skills
   when relevant: <names>." Nothing else changes when both are empty.

@@ -9,7 +9,8 @@ history stay unchanged.
 1. Read the role's Assignment and current `attempt` from team-state.yaml.
 2. Verify `<team_dir>/assignments/<id>/handoff.md` exists and its Attempt
    equals the Assignment attempt. If not, send the role
-   "Write your handoff now, then stop." and wait through the watcher for
+   "Write your handoff now, then stop." (by the role's `steering`,
+   monitoring.md "Steering") and wait through the watcher for
    `handoff`. If the role is gone, use Resume's "Gone" branch.
 3. Check all seven sections. Do not rotate during an unsaved edit or running
    test. Confirm the role is idle after its final checkpoint.

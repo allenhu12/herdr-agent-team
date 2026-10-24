@@ -55,7 +55,8 @@ Write a closing record into `team-state.yaml`: for every Assignment, its
 final outcome and timestamp. Then run `archive-state.py archive` so settled
 records move to `state-archive.yaml`. The two files together are the
 disband archive — don't delete them afterward. Keep `<team_dir>/role-tree.md` beside it as the last
-rendered roster.
+rendered roster. Leave `<team_dir>/inbox/` in place as part of the
+record; pending messages there are reported, not deleted.
 
 ## 6. Close
 

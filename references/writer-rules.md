@@ -154,6 +154,7 @@ lease says. There are two layers:
   <team_dir>/state-archive.yaml
   <team_dir>/role-tree.md
   <team_dir>/assignments/*/assignment.md
+  <team_dir>/inbox/**
   <project_root>/00-current/**
   <project_root>/**/progress*.md
   <project_root>/**/item-list.json
@@ -184,6 +185,16 @@ a name pattern. Check role ceilings at Assemble and Adjust, and Assignment
 leases at Dispatch; reject as above. Core entries
 do not live in team.yaml, so no edit can drop them; refuse a User request to
 remove one and explain why.
+
+## Inbox folders
+
+`<team_dir>/inbox/<role>/` is Lead-owned: only the Lead (through
+`inbox.py`) creates messages there. The one exception to single ownership:
+the role itself moves its own `NNNN.msg` files into `handled/`, which is
+its acknowledgement (monitoring.md "Steering"). It never creates, edits,
+or deletes inbox files, and no lease may grant the folder. Because a CLI
+cannot narrow write access to "move only", acceptance treats any other
+change in the role's inbox folder as an out-of-scope write.
 
 ## Sub-Agent-to-Sub-Agent communication
 

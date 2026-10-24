@@ -68,7 +68,8 @@ pending_user: []
 # See dispatch.md "5c. Waiting on the User".
 monitors: []
 # Each: assignment_id, attempt, assignee, task_handle (host handle, not shell PID),
-#       optional outcome (report | handoff | blocked | unknown | gone | stalled | no_report | timeout).
+#       optional outcome (report | handoff | blocked | unknown | gone | stalled | no_report | timeout
+#       | inbox_unacked | superseded). An inbox.py wait-ack monitor: kind: inbox, assignee, task_handle.
 integration:
   checkout_dir: null     # shared mode; isolated needs "/absolute/integration/checkout"
   status: pending # pending | running | succeeded | failed | not_applicable

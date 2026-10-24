@@ -19,6 +19,9 @@ A read-only reconciliation sweep. Nothing in this workflow writes anything.
    this Status pass, the Lead may also read the bottom line of the role's
    pane for its CLI context figure. Both are hints only; neither proves
    completion or changes the state.
+2b. For roles with `steering: inbox`, run `inbox.py status` (read-only;
+   it never rings). Flag a pending message that has no `kind: inbox`
+   monitor.
 3. Reconcile: flag any mismatch between book and live state — e.g. books say
    `expected_agent_state: working` but Herdr reports `idle`, or vice versa.
    Read-only checks may compare Lead/role name, pane, kind, cwd, process,

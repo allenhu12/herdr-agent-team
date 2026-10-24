@@ -67,6 +67,8 @@ on an outcome the Lead must actually act on:
 | `stalled` | the opening prompt returned `agent_prompt_stalled` | `agent read` to see why it didn't land |
 | `no_report` | idle/done seen twice; the script already sent one automatic nudge ("write report.md") and it still didn't appear | treat as stuck, `agent read` |
 | `timeout` | the hard deadline passed with no other outcome | extend, nudge, or escalate, same as before |
+| `inbox_unacked` | inbox role only: the nudge was rung `HAT_INBOX_RING_MAX` times and never moved to `handled/` | `agent read`, then the stuck branch |
+| `superseded` | inbox role only: the nudge was refused or retired because this attempt is no longer current | nothing to accept; the Lead already moved on |
 
 The script swallows `working`, a *first* idle/done without a report (it
 sends the one nudge itself and keeps waiting), and short `blocked`/`unknown`
@@ -104,6 +106,42 @@ handle being mistaken for a live one later.
 Use a foreground call to the script only for a simple, single-Sub-Agent
 case where there's nothing else to do meanwhile — it still exits on the
 same outcome table, just without a host background handle to register.
+
+## Steering: how mid-task messages reach a role
+
+A role's `steering` field in team.yaml (default `prompt`) decides how the
+Lead sends it a mid-task message: the watcher's report nudge, "Write your
+handoff now, then stop.", "Tester window open/closed", or an answer to a
+question the role asked in text while idle.
+
+- **`prompt`**: type the message with `herdr agent prompt`, as before.
+- **`inbox`**: write it with `assets/inbox.py send` into
+  `<team_dir>/inbox/<role>/NNNN.msg`; the role's pane receives only a
+  fixed doorbell line naming that folder. The role reads each message in
+  number order, acts on it, and moves it into `handled/`; that move is the
+  acknowledgement. After every `send`, run `inbox.py wait-ack --role <role>`
+  through the host background facility and register it in `monitors` with
+  `kind: inbox` and the role as `assignee` (one per role is enough). It
+  rings an idle role again after a grace period and exits once:
+  `inbox_acked`, `inbox_unacked` (agent read, then the stuck branch),
+  `gone` (Resume's gone branch), or `timeout`.
+
+`send` and every later ring re-read team-state.yaml. A message naming an
+Assignment is valid only while that Assignment is dispatched at the same
+attempt; a tester-window `open` message only while that tester Assignment
+is dispatched. `send` refuses a stale message, and a ring moves one to
+`retired/` with a reason instead of ringing. On every state transition
+that makes messages stale (rework, cancel, redirect, tester window
+closing, Rotate) the order is: stop the watcher, write the new state,
+then `inbox.py retire` the role's matching messages. At every wake-up,
+run `inbox.py status` before anything else, so a message still pending
+after its watcher exited stays visible.
+
+Messages never replace these: dispatch, rework, Resume, and Rotate
+prompts ("Read assignment.md ..."), which go through the watcher; `esc` /
+`ctrl+c` interrupts; key presses that answer a CLI permission prompt; and
+the opening identity instruction. Peer messages between Sub-Agents keep
+writer-rules.md's rules. Only the Lead writes a role's inbox folder.
 
 ## Result handoff: report files, not screen scraping
 
@@ -157,6 +195,11 @@ seven sections. Confirm the role is idle and checkpointed, then run Rotate.
 - **`timeout`** — `agent read` to see where it's stuck, then pick one:
   extend the deadline and re-arm, send a nudge prompt and re-arm with a
   prompt, or escalate to the User.
+- **`inbox_unacked`** — the role never moved the nudge to `handled/`.
+  `agent read` to see why (doorbell lost, protocol not understood, context
+  trouble), then follow the stuck branch. Do not resend the same message.
+- **`superseded`** — the nudge belonged to an attempt that is no longer
+  current. Do not accept or rework from this wake-up.
 - **`unknown`** — never treat as completion. Read the pane, and escalate to
   the User if it still can't be classified after that.
 - **`gone`** — route through Resume's "gone" branch (rebuild the role); do
@@ -213,6 +256,10 @@ re-dispatching after a failure — must follow this order, every time:
    (e.g. ask the Sub-Agent to check and report, or use whatever
    process-listing capability is available) before treating it as stopped.
    Once confirmed, revoke its write-scope grant and remove its monitor.
+   Write the new state, then for an inbox role run `inbox.py retire
+   --role <role> --assignment <id> --before-attempt <new attempt>` (or
+   `--all` for a cancellation) so no queued message from the stopped
+   attempt is acted on later.
    For cancellation, mark the Assignment `cancelled` with finished_at in
    `team-state.yaml`. For acceptance rework, record the stopped attempt;
    Dispatch transitions the same Assignment to pending with an incremented

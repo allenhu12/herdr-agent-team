@@ -10,6 +10,32 @@ new team files or breaks old ones raises the first number.
 `schema_version` in team.yaml and team-state.yaml is a different number:
 it is the state file format, and it stays 2.
 
+## 4.4.0 - 2026-10-24
+
+### Added
+
+- Per-role steering inbox, off by default. A role with `steering: inbox`
+  receives mid-task messages (the report nudge, the handoff request,
+  tester window notices, answers) as files in `<team_dir>/inbox/<role>/`;
+  its pane gets only a fixed doorbell line, and moving a message into
+  `handled/` is the acknowledgement. See monitoring.md "Steering".
+- `assets/inbox.py`: `send`, `status`, `ring`, `wait-ack` (the background
+  delivery owner, registered as a `kind: inbox` monitor), `retire`, and
+  `doorbell`. Messages are checked against the published team-state at
+  send and at every ring, so a message for a past attempt or a closed
+  tester window is refused or retired, never acted on.
+- watcher outcomes `inbox_unacked` and `superseded` when
+  `HAT_STEERING=inbox`; `HAT_HERDR_BIN` lets tests use a fake Herdr.
+- Adjust "Turn a role's inbox on or off" with a handshake before the
+  field changes; Resume re-arms `wait-ack` for pending messages.
+
+### Changed
+
+- `steering` (optional, `prompt` or `inbox`) in team.yaml roles; absent
+  means `prompt`, so existing teams behave exactly as in 4.3.0.
+- `<team_dir>/inbox/**` is a core protected path; scoped launches of an
+  inbox role add `--add-dir <team_dir>/inbox/<role>`.
+
 ## 4.3.0 - 2026-10-24
 
 ### Added

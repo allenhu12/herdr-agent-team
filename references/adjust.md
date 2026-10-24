@@ -107,6 +107,29 @@ bounded context reminder from Assemble step 5 before the next Assignment
 that depends on a new or changed root. Do not rewrite a settled
 Assignment's frozen Inputs.
 
+## Turn a role's inbox on or off
+
+Turning the inbox on changes how the role is reached, so the role must
+learn the protocol before `steering` changes:
+
+1. The role is idle and passes identity verification. Under `permissions:
+   scoped`, its launch arguments must already include `--add-dir
+   <team_dir>/inbox/<role>`; if not, first replace the session with the new
+   arguments (as in Rotate, keeping its Assignment, checkout, and lease).
+2. Send the inbox protocol paragraph from assemble.md step 5 through the
+   watcher-style `agent prompt --wait`.
+3. Send one test message with `inbox.py send --handshake --kind note
+   --role <role> --body "Inbox check: move this file to handled/."` (the
+   only send allowed while `steering` is still `prompt`) and run `inbox.py
+   wait-ack --role <role>`.
+4. Only after `inbox_acked`, write the real team.yaml with `steering:
+   inbox` and re-render the Role Tree. On `inbox_unacked`, keep `prompt`
+   and report it.
+
+Turning it off: `inbox.py retire --role <role> --all --reason "steering
+off"`, then set `steering: prompt`, re-render, and tell the role in one
+prompt that the inbox is no longer used.
+
 ## Replace the Lead
 
 - **Session Lead (`lead.mode: session`)**: it cannot replace itself from

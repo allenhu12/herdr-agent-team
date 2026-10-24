@@ -86,6 +86,10 @@ in writer checkouts. Artifacts are versioned, not overwritten during review.
 ├── state-archive.yaml     # Lead-owned, append-only settled history
 ├── role-tree.md           # Lead-owned, rendered from team.yaml, read-only
 ├── lead-handoff.md        # Lead-owned narrative snapshot; refreshed at settled boundaries
+├── inbox/<role>/          # Lead-owned messages for steering: inbox roles (monitoring.md "Steering")
+│   ├── NNNN.msg           # pending; the role moves it to handled/ to acknowledge
+│   ├── handled/
+│   └── retired/           # stale messages with NNNN.reason
 └── assignments/<assignment-id>/
     ├── assignment.md  # Lead-owned
     ├── log.md         # Sub-Agent-owned after initialization
@@ -148,6 +152,10 @@ cannot expose them; never copy advice into them. For a spawned Lead they
 are the verified launch spec. `lead.suggested` keeps template advice and
 is never shown as the actual Lead. The Role Tree renders from team.yaml
 alone, so it is the same with or without team-state.yaml.
+
+Roles also accept optional `steering` (`prompt` or `inbox`; absent means
+`prompt`). It chooses how the Lead sends mid-task messages
+(monitoring.md "Steering"); turn it on through Adjust.
 
 Roles also accept optional `prompt_file` (appended to the opening
 instruction) and `skills` (a list of names, mentioned in the opening
@@ -262,9 +270,13 @@ Lead-Agent-owned only. Top level:
   wake-up/cancel targets the right work. Not a raw shell PID. The handle
   belongs to a backgrounded `skill/assets/watch-assignment.sh` run (see
   `monitoring.md`), not a bare `agent wait` — its last observed `outcome`
-  (`report`/`blocked`/`unknown`/`gone`/`stalled`/`no_report`/`timeout`) may
+  (`report`/`blocked`/`unknown`/`gone`/`stalled`/`no_report`/`timeout`/
+  `inbox_unacked`/`superseded`) may
   be recorded alongside the handle for Status/Resume's benefit, but the
-  handle itself, not a cached outcome, is what identifies live work.
+  handle itself, not a cached outcome, is what identifies live work. An
+  `inbox.py wait-ack` monitor has `kind: inbox`, `assignee` (the role), and
+  its handle; its outcomes are `inbox_acked`, `inbox_unacked`, `gone`, and
+  `timeout`.
 - `integration`: checkout_dir, status, accepted_artifacts, final_artifact,
   checks. Status is pending/running/succeeded/failed/not_applicable, distinct
   from Assignment state. Read-only tasks can use not_applicable with a reason.

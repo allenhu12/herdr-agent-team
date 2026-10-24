@@ -149,7 +149,11 @@ python3 skill/assets/dirty-baseline.py capture --team-dir <team_dir> \
    before the tester prompt, send the idle implementor one line, "Tester
    window open for <tester id>. Edit no source. Log any code request in
    <implementor's last Assignment log.md> and do not act on it." When the
-   tester Assignment settles, send "Tester window closed." Relay logged
+   tester Assignment settles, send "Tester window closed." Send both by the
+   implementor's `steering` (monitoring.md "Steering"); as inbox messages
+   they are `--kind tester-window --window <tester id> --window-state
+   open|closed`, and the Lead retires a still-pending `open` when the
+   window closes. Relay logged
    requests through a normal Assignment.
 
 Create `<team_dir>/assignments/<id>/` (new id, or same id with `attempt` incremented for
@@ -277,7 +281,9 @@ itself (see `monitoring.md`). On a `report` outcome:
      handoff's Gotchas and move general-value items to `memory.md` through
      Lead-only task-relay memory capture.
    - **Fail, below the cap**: send "Write your handoff now, then stop."
-     and wait through the watcher for `handoff` before rework. Archive the
+     (by the role's `steering`, monitoring.md "Steering"; an inbox message
+     names this Assignment and attempt) and wait through the watcher for
+     `handoff` before rework. Archive the
      prior report and handoff under `artifacts/attempt-<n>/`,
      then append the gap to `assignment.md`. Complete the stop/proof and lease-release steps below,
      then increment `attempt`, set `assignment_status: pending`, and re-dispatch (go back to

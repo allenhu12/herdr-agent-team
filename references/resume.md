@@ -68,6 +68,14 @@ For an idle role whose context configuration changed, use Assemble's
 bounded reminder before its next context-dependent dispatch. Do not prompt
 a working role to refresh context.
 
+## 2b. Pending inbox messages
+
+For each verified role with `steering: inbox`, run `inbox.py status
+--role <role>`. Pending messages stay valid only while their Assignment
+and attempt are current; `ring` retires the rest. For a role that still
+has pending messages, arm a fresh `inbox.py wait-ack` and register it in
+the replaced `monitors` list (step 4). List pending messages in the report.
+
 ## 3. Continuation instruction and watcher, together
 
 **First, roles with no dispatched Assignment.** A role counts as having

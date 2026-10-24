@@ -51,6 +51,7 @@ roles:
     write_ceiling: null  # tracked source paths under code_repos; the only role allowed them
     up_agent: lead
     low_agent: []
+    steering: prompt
     prompt_file: null
     skills: []
     context_roots: []
@@ -69,6 +70,7 @@ roles:
     write_ceiling: null  # declared generated/cache/output paths per repository only, never tracked source
     up_agent: lead
     low_agent: []
+    steering: prompt
     prompt_file: null
     skills: []
     context_roots: []
@@ -87,6 +89,7 @@ roles:
     write_ceiling: null  # knowledge-base document paths only; never protected paths or source
     up_agent: lead
     low_agent: []
+    steering: prompt
     prompt_file: null
     skills: []
     context_roots: []

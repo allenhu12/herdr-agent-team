@@ -51,6 +51,7 @@ roles:
       - "tests/**"
     up_agent: lead
     low_agent: []
+    steering: prompt   # prompt | inbox; how mid-task messages reach the role (monitoring.md "Steering")
     prompt_file: null  # optional absolute path; appended to the opening instruction
     skills: []         # optional skill names, mentioned in the opening instruction
     context_roots: []  # optional absolute directories to read as task context

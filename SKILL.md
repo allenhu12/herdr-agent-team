@@ -2,7 +2,7 @@
 name: herdr-agent-team
 description: "Coordinate an agent team via Herdr when explicitly asked to create a named team, assemble, dispatch, check status, resume, adjust (add/remove/replace a role's model or effort), disband, show the skill version, or 'Use Herdr to complete this task'. Do not activate for generic coding, explanations, or requests to review/edit this skill or a quoted prompt. Requires HERDR_ENV=1 and the Herdr CLI."
 metadata:
-  version: "4.3.0"
+  version: "4.4.0"
 ---
 
 # herdr-agent-team
@@ -94,7 +94,9 @@ dispatch, [assets/dirty-baseline.py](assets/dirty-baseline.py) for shared-mode
 baselines and acceptance audits, and
 [assets/commit-gate.py](assets/commit-gate.py) around each source commit.
 Exit 0 means go on; exit 1 or 3 means stop and follow the printed reasons.
-Never work around a refusal by hand.
+Never work around a refusal by hand. A role with `steering: inbox` gets
+mid-task messages through [assets/inbox.py](assets/inbox.py) (monitoring.md
+"Steering"); other roles keep typed prompts.
 Background all monitoring through [assets/watch-assignment.sh](assets/watch-assignment.sh)
 (see monitoring.md) instead of a bare `agent wait`.
 The [user guide](user-guide.md) gives a worked example; the
