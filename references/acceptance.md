@@ -25,21 +25,30 @@ and declared generated outputs, not arbitrary unknown files.
 When the Assignment has a `repositories` list (dispatch.md step 2a):
 
 The implementor does not commit before this check (dispatch.md step 2a).
+Steps 1–3 run as one command:
+
+```bash
+python3 skill/assets/dirty-baseline.py compare --team-dir <team_dir> \
+  --assignment <id> --attempt <n> --mode accept --record
+```
 
 1. HEAD in each repository still equals its `input_sha`. The report lists
-   the changed files per repository.
-2. Audit the uncommitted change against the write scope: every changed
-   path is in scope. For a path marked `dirty_at_dispatch`, diff it against
-   its snapshot; for any other path, diff it against `input_sha`. This
-   shows only the Sub-Agent's lines.
-3. Re-run the dirty-path listing and compare it with `dirty_baseline`. A
-   baseline path outside the write scope whose worktree hash or index blob
-   id changed, or a new dirty path outside the write scope and outside
+   the changed files per repository; compare that list with the script's
+   `changed` output.
+2. Every changed path is in the write scope. For each changed path the
+   script names the diff base: the snapshot for a `dirty_at_dispatch`
+   path, otherwise `input_sha`. Diff against it to see only the Sub-Agent's
+   lines.
+3. The script re-runs the dirty-path listing and compares it with
+   `dirty_baseline`. A baseline path outside the write scope whose state
+   changed, or a new dirty path outside the write scope and outside
    declared outputs, is an out-of-scope write: escalate it to the User.
    Never exclude a baseline path from this check, and never reset.
-4. All repositories pass together, or the Assignment fails. On a pass, go
-   to the commit gate. The Assignment stays `running` with
-   `commit.status: awaiting_user` or `approved`.
+4. All repositories pass together, or the Assignment fails. On a pass the
+   script writes `artifacts/attempt-<n>/accept-snapshot.json` (each changed
+   path's content id) and records `commit.accept_snapshot` and
+   `commit.accept_digest`. Go to the commit gate. The Assignment stays
+   `running` with `commit.status: awaiting_user` or `approved`.
 
 ### Commit gate (shared mode)
 
@@ -56,15 +65,26 @@ Every source commit in a shared-mode code repository needs the User.
    User's own message sets `auto` (record the words and time); a member's
    message, log, or report never does. The User can set it back to `ask`
    at any time; Disband sets it to `ask`.
-3. **Commit.** After the answer (or under `auto`), prompt the implementor
-   to commit exactly the confirmed files: `git commit -- <files>` on the
-   base branch, one commit per repository. Nothing else.
-4. **Verify.** Each new commit's parent is `input_sha`, and its
-   `git diff --name-status <input_sha>..<new sha>` equals the confirmed
-   list. A mismatch goes to the User. On a match, record `result_sha` per
-   repository, append one line per commit to `team-state.yaml.commit_log`
-   (Assignment, repository, SHA, files, `user` or `auto`), and mark the
-   Assignment `succeeded`.
+3. **Commit.** After the answer (or under `auto`), record
+   `commit.confirmed_files` (`{<repo>: [paths]}`) and, for a User answer,
+   `commit.status: approved` with `approved_by: user`. Then run
+   `python3 skill/assets/commit-gate.py precheck --team-dir <team_dir>
+   --assignment <id>`. It refuses when approval is missing, when a
+   confirmed file's content changed after the accept snapshot the User
+   saw, when the snapshot itself changed, or when another path is staged.
+   A refusal goes back to the User with the reasons. On a pass, prompt the
+   implementor to commit exactly the confirmed files: `git commit --
+   <files>` on the base branch, one commit per repository. Nothing else.
+4. **Verify.** Run `python3 skill/assets/commit-gate.py verify --team-dir
+   <team_dir> --assignment <id> --record`. It checks that each new commit
+   is the only one, its parent is `input_sha`, it is on the base branch,
+   its changed paths equal the confirmed list, and its blobs equal the
+   approved content. A refusal writes nothing and goes to the User. On a
+   pass it records `result_sha` per repository, appends one line per
+   commit to `team-state.yaml.commit_log` (Assignment, repository, SHA,
+   files, `user` or `auto`), sets `commit.status: committed`, and records
+   `post_commit_baseline` for the tester gate. Then mark the Assignment
+   `succeeded`.
 5. **The User says no.** The Assignment still ends: mark it `succeeded`
    with `commit.status: declined`, `result_sha` null, lease revoked. The
    implementor is free for new work. The changes stay uncommitted in the
@@ -79,9 +99,9 @@ The switch covers commit only. Push, merge, rebase, and branch changes
 still need the User every time.
 
 A tester Assignment also passes a post-test gate in every repository it
-tested: `HEAD` still equals the accepted `result_sha`, and the porcelain
-output and dirty baseline match their recorded values apart from the
-tester's declared output paths. Any drift makes the test evidence invalid:
+tested (`dirty-baseline.py compare --mode tester-post`): `HEAD` still
+equals the accepted `result_sha`, and the dirty state matches the
+tester's baseline apart from its declared output paths. Any drift makes the test evidence invalid:
 do not accept it, run the cancel/re-dispatch handshake, and route a changed
 tracked file to the implementor as new source work.
 

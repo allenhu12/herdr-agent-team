@@ -35,7 +35,10 @@ This is a **soft constraint**: nothing at the filesystem level enforces it.
 Formatters, dependency installers, git, and the like can all produce
 out-of-scope writes incidentally. Compensate at acceptance time — a `git
 diff` (or equivalent) audit of what actually changed, and escalate anything
-outside the granted scope to the User. Separate checkouts reduce accidental
+outside the granted scope to the User. The gate scripts
+(`dispatch-precheck.py`, `dirty-baseline.py`, `commit-gate.py`) run these
+checks at dispatch and acceptance; they make the checks repeatable, not
+enforced by the filesystem. Separate checkouts reduce accidental
 file collisions; they do not enforce permissions or restrict reads.
 
 ## One writer per checkout

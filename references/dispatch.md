@@ -5,10 +5,40 @@ Hand one Sub-Agent an Assignment, and see it through to acceptance. See
 workflow relies on, and `state-files.md` for the Assignment lifecycle and
 schema.
 
+## Dispatch order
+
+1. Run `assets/dispatch-precheck.py` (steps 1–2 below). It reads only its
+   arguments, the team files, live Herdr state, and records that already
+   exist, so it runs before the new Assignment has a record.
+2. Write the pending Assignment record (with `kind` and `lease`),
+   `assignment.md`, and `log.md`.
+3. For code repository work in shared mode, run
+   `assets/dirty-baseline.py capture --record` (step 2a).
+4. For a tester Assignment, run `dirty-baseline.py compare --mode tester-pre`.
+5. Send the prompt through the watcher (step 3).
+
+Exit 0 means go on. Exit 1 (refuse) or 3 (cannot tell) means stop: send
+nothing, and follow the branch that the printed reasons name (queue, the
+`blocked` branch, Resume, or a question to the User). Never work around a
+refusal by hand. The rules below remain the specification the scripts
+implement.
+
 ## 1. Busy check
 
-First verify the Lead mapping, role ownership, live configuration/header,
-and checkout identity under identity-and-launch.md. Read legacy migration
+```bash
+python3 skill/assets/dispatch-precheck.py --team-dir <team_dir> --role <role> \
+  --assignment <id> --attempt <n> --kind source|tester|reader|knowledge \
+  --scope <abs path or dir/**> [--scope ...] [--output <abs dir/**> ...] [--rework]
+```
+
+`--scope` is the write lease you intend to grant; `--output` is a declared
+generated/cache/output path (a tester's only grant in shared mode).
+`--rework` allows the same Assignment's stopped previous attempt.
+
+The script verifies the Lead-recorded role identity against live Herdr state
+(pane, kind, cwd, process identity, checkout identity), but it does not
+replace header verification after a launch or process change
+(identity-and-launch.md). Read legacy migration
 rules before issuing work from old state. Keep the smallest sufficient team;
 do not create an extra role for an Assignment a compatible idle role can do.
 
@@ -17,7 +47,10 @@ between turns (runtime finding 11: Codex switched gpt-5.6-sol to
 gpt-5.6-luna with no agent action). Before each work prompt (dispatch,
 rework, commit request), read the pane's last lines
 (`herdr agent read <role> --lines 3`) and compare the model and effort
-shown there with the role's recorded model and effort. On a mismatch,
+shown there with the role's recorded model and effort. The precheck does
+this when `launch_verification.model_footer_text` holds the exact footer
+text seen at verification; without it, it exits 3 and you compare by hand.
+On a mismatch,
 send nothing, record the drift in team-state.yaml, and ask the User:
 switch it back, accept the new model, or replace the role (adjust.md).
 Opening and window notices that ask for no work do not need the check.
@@ -49,6 +82,7 @@ before dispatching:
 
 ## 2. Write assignment.md before sending anything
 
+The precheck (step 1) enforces the scope rules in this paragraph.
 Before creating the Assignment or prompting, reject a requested scope outside
 the role ceiling, a logical path overlap with an active lease, or a second
 writer sharing a checkout/index (in shared mode: a second source writer, or
@@ -62,40 +96,48 @@ paths").
 ### 2a. Code repositories in a shared-mode team
 
 When the Assignment touches any `code_repos` entry under `checkout_mode:
-shared`, do these before writing `assignment.md`:
+shared`, do these after writing the pending record and before the prompt
+(Dispatch order, step 3):
 
-1. **Input SHAs.** For each touched repository record `{name, input_sha:
-   <git -C path rev-parse HEAD>, result_sha: null}` in the Assignment's
-   `repositories` list in team-state.yaml.
-2. **Dirty baseline.** List every dirty or untracked path, file by file:
+```bash
+python3 skill/assets/dirty-baseline.py capture --team-dir <team_dir> \
+  --assignment <id> --attempt <n> --record
+```
 
-   ```bash
-   git -C "<repo path>" status --porcelain=v1 -z --untracked-files=all
-   ```
-
-   For each path write one line to
-   `<workspace>/artifacts/attempt-<n>/dirty-baseline.tsv`: repository
-   name, path, status code, worktree hash (`git hash-object`, or `deleted`),
-   and index blob id (from `git ls-files -s -- <path>`, or `none`). Record
-   the file's absolute path as the Assignment's `dirty_baseline`. These are
-   mechanical commands; do not read file contents.
+1. **Input SHAs.** The script records `{name, input_sha, result_sha}` per
+   touched repository in the Assignment's `repositories` list. A rework
+   whose `HEAD` moved from the recorded `input_sha` is refused: run the
+   late-signal procedure (5b).
+2. **Dirty baseline.** It lists every dirty or untracked path with
+   `git status --porcelain=v1 -z --untracked-files=all` and writes
+   `<workspace>/artifacts/attempt-<n>/dirty-baseline.jsonl`: one JSON
+   object per path with repository, status code, the path as base64 of its
+   raw bytes (so any file name survives), the rename source, the worktree
+   state (file blob, symlink target, or absent), and the index entry (mode
+   and blob id, or none). It records the file's absolute path as the
+   Assignment's `dirty_baseline`. It reads no file contents into the
+   output. A different baseline for the same attempt is refused; frozen
+   evidence is never overwritten.
 3. **Snapshot dirty in-scope files.** A dirty path inside the write scope
-   does not block dispatch. Copy each one to
-   `<workspace>/artifacts/attempt-<n>/snapshots/<repo name>/<path>` so
-   acceptance can separate the Sub-Agent's lines from earlier ones. Mark
+   does not block dispatch. The script copies each regular file to
+   `<workspace>/artifacts/attempt-<n>/snapshots/<repo name>/<path>` (a
+   symlink keeps only its target) so
+   acceptance can separate the Sub-Agent's lines from earlier ones. It marks
    these paths `dirty_at_dispatch` in the Assignment. Dirty paths outside
    the scope stay as they are. Nothing is committed without the commit
    gate (acceptance.md), so earlier unsaved work never enters git unseen.
 4. **Tester gate.** A tester Assignment needs, for every repository it
-   tests: a `HEAD` recorded in `commit_log` (an accepted implementor
-   commit with its `result_sha`, or a User-confirmed commit, below),
-   the implementor idle with no background process left (the cancellation
-   proof in monitoring.md), and no implementor source Assignment pending or
-   running. Then run the pre-test gate: `HEAD` equals that SHA, and the
-   porcelain output and dirty baseline match their recorded values. Any
+   tests: a `HEAD` equal to the last `commit_log` entry (an accepted
+   implementor commit with its `result_sha`, or a User-confirmed commit,
+   below), the implementor idle with no background process left (the
+   cancellation proof in monitoring.md), no implementor source Assignment
+   pending or running, and the dirty state equal to that accepted
+   Assignment's `post_commit_baseline`. `dispatch-precheck.py --kind tester`
+   checks these. After capture, `dirty-baseline.py compare --mode
+   tester-pre` checks `HEAD` and the tester's own fresh baseline. Any
    miss rejects the dispatch. The tester's lease holds only its declared
-   generated/cache/output paths, and its verification commands carry an
-   explicit cwd per repository.
+   generated/cache/output paths (`lease.outputs`), and its verification
+   commands carry an explicit cwd per repository.
 5. **No commit during work.** The implementor's Assignment says: edit,
    do not commit, and list the changed files per repository in the report.
    The commit happens only after acceptance and the commit gate
@@ -111,7 +153,10 @@ shared`, do these before writing `assignment.md`:
    requests through a normal Assignment.
 
 Create `<team_dir>/assignments/<id>/` (new id, or same id with `attempt` incremented for
-rework) and write `assignment.md` from `assets/assignment.md.template`:
+rework). Record the Assignment in team-state.yaml as `pending` with
+`kind` (source, tester, reader, or knowledge) and `lease: {paths: [...],
+outputs: [...]}` exactly as the precheck accepted them. Then write
+`assignment.md` from `assets/assignment.md.template`:
 description, acceptance criteria, write scope (role ceiling ∩ this lease —
 see `writer-rules.md`), partner authorizations if any, related-doc paths, and
 the attempt number. Fill its Inputs section: the upstream report paths with

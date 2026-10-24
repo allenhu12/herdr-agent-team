@@ -220,7 +220,9 @@ Lead-Agent-owned only. Top level:
   handoff_at; it is never a second Lead.
 - `roles`: pane_id, kind, cwd, expected_agent_state, checkout_identity
   (real root and git_dir, or non-git snapshot identity), created_by_team,
-  process_identity, intended model/profile/effort, launch_verification,
+  process_identity, intended model/profile/effort, launch_verification
+  (optionally with `model_footer_text`, the exact footer text that showed
+  the model and effort at verification; dispatch-precheck.py compares it),
   and `role_history` (prior names after an Adjust rename).
   A role may also have `rotations: [{at, reason, handoff_path}]` for
   replacement sessions during a running Assignment.
@@ -228,7 +230,10 @@ Lead-Agent-owned only. Top level:
 - `assignments`: active, queued, and not yet archived settled records
   (see "Archive settled history"), each with id, attempt,
   assignee, assignment_status, base_commit or input_snapshot, checkout_dir,
-  absolute report_path, artifact, lease, and created/finished timestamps.
+  absolute report_path, artifact, `kind` (source | tester | reader |
+  knowledge), `lease: {paths: [...], outputs: [...]}` (absolute paths or
+  `<dir>/**`; a plain list is read as `paths`), and created/finished
+  timestamps. A record without `kind` is never treated as a tester.
   Pending queued records have `dispatched_at: null` and no active lease.
   An Assignment that touches code repositories also records
   `repositories`: one `{name, input_sha, result_sha}` entry per repository
@@ -237,8 +242,10 @@ Lead-Agent-owned only. Top level:
   (dispatch.md), or null. A shared-mode source Assignment also records
   `dirty_at_dispatch` (in-scope paths snapshotted at dispatch) and
   `commit`: `{status: none | awaiting_user | approved | committed | declined,
-  confirmed_files, approved_by: user | auto, approved_at}`
-  (acceptance.md, "Commit gate").
+  confirmed_files, approved_by: user | auto, approved_at, accept_snapshot,
+  accept_digest}` (acceptance.md, "Commit gate"). After a verified commit
+  the record also holds `post_commit_baseline`, the absolute path of the
+  dirty state right after the commit; the tester gate reads it.
 - `commit_approval` (shared mode): `{mode: ask | auto, granted_by_words,
   granted_at}`. Default `ask`. Only the User's own message sets `auto`;
   Disband resets it to `ask`.

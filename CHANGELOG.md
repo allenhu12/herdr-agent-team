@@ -10,6 +10,42 @@ new team files or breaks old ones raises the first number.
 `schema_version` in team.yaml and team-state.yaml is a different number:
 it is the state file format, and it stays 2.
 
+## 4.3.0 - 2026-10-24
+
+### Added
+
+- Gate scripts that run the mechanical dispatch and acceptance checks and
+  refuse instead of relying on the Lead to type every command. Each prints
+  one JSON line and exits 0 (pass), 1 (refuse), 2 (usage), or 3 (cannot
+  tell, treated as refuse); a crash is never a pass.
+  - `assets/dispatch-precheck.py`: busy check, live identity (pane, kind,
+    cwd, process, checkout), recorded model footer, write ceiling,
+    protected paths, lease overlap by repository-relative path, one writer
+    per checkout, tester window, and tester gate.
+  - `assets/dirty-baseline.py`: shared-mode `capture` of the dirty
+    baseline and snapshots, and `compare` for acceptance (`accept`) and
+    the tester gates (`tester-pre`, `tester-post`).
+  - `assets/commit-gate.py`: `precheck` before the implementor commits and
+    `verify` after it, bound to the content the User approved.
+  - `assets/gate_lib.py`: shared path, protected-path, git, and Herdr
+    helpers.
+- Offline tests for every refusal path in `evals/gate_cases.py`, run by
+  `evals/check_package.py` with a fake Herdr.
+
+### Changed
+
+- The dirty baseline is now `dirty-baseline.jsonl`: paths are stored as
+  base64 of their raw bytes, so names with tabs or newlines survive, and
+  worktree and index state are recorded separately.
+- dispatch.md has a fixed Dispatch order: precheck, pending record,
+  capture, tester-pre, prompt. Assignment records carry `kind` and a
+  `lease: {paths, outputs}` shape.
+- The commit gate binds approval to `accept-snapshot.json` (per-path
+  content ids). A file changed after approval, a stray staged path, or a
+  committed blob that differs from the approved content is refused.
+- `launch_verification.model_footer_text` (optional) lets the precheck
+  check model drift; without it the check stays manual.
+
 ## 4.2.0 - 2026-10-23
 
 ### Added

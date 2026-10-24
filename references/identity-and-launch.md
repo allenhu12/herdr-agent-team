@@ -230,6 +230,11 @@ and dispatch and tell the User. Leave prior agents and their monitors intact.
 and treat them as verification. An integration fix or explicitly approved
 alternative is required when Herdr cannot expose the required header.
 
+Also record in `launch_verification.model_footer_text` the exact footer
+text that shows the model and effort, when the CLI prints one. The
+dispatch precheck looks for that text before each work prompt; without
+it, the model check stays manual.
+
 When first verified for a CLI version, record the exact footer text used to
 read its remaining-context percentage. Do not treat the percentage as a
 completion signal. Status and acceptance may read it only at the moments

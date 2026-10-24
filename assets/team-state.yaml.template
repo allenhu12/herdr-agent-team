@@ -37,17 +37,21 @@ roles: {}
 #       model: "observed-model-id"
 #       effort: high
 #       evidence_path: "/absolute/header-evidence"
+#       model_footer_text: "gpt-5.6-sol high"  # optional; exact footer text seen at verification
 #     expected_agent_state: idle
 #     role_history: []   # prior names after an Adjust rename: [{name, until, reason}]
 #     rotations: []      # [{at, reason, handoff_path}] for live Assignment rotations
 assignments: []
-# Each: id, attempt, assignee, assignment_status, created_at, finished_at,
-# base_commit or input_snapshot, checkout_dir, report_path, artifact, lease.
+# Each: id, attempt, assignee, kind (source|tester|reader|knowledge),
+# assignment_status, created_at, finished_at, base_commit or input_snapshot,
+# checkout_dir, report_path, artifact, lease: {paths: [...], outputs: [...]}.
 # Code work also records:
 #   repositories: [{name: backend, input_sha: "<sha>", result_sha: null}]
-#   dirty_baseline: "<team_dir>/assignments/<id>/artifacts/attempt-<n>/dirty-baseline.tsv" or null
+#   dirty_baseline: "<team_dir>/assignments/<id>/artifacts/attempt-<n>/dirty-baseline.jsonl" or null
 #   dirty_at_dispatch: [{repo: backend, path: src/app.js, snapshot: "<workspace>/artifacts/attempt-<n>/snapshots/backend/src/app.js"}]
-#   commit: {status: none, confirmed_files: [], approved_by: null, approved_at: null}
+#   commit: {status: none, confirmed_files: {}, approved_by: null, approved_at: null,
+#            accept_snapshot: null, accept_digest: null}
+#   post_commit_baseline: null   # set by commit-gate.py verify --record
 # Pending records may be queued with dispatched_at: null; never overwrite an active item.
 # A report held for an open question records:
 #   deferred: {question: q-<n>, report_attempt: <n>, noted_at: "<timestamp>"}

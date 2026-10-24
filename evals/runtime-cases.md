@@ -160,3 +160,13 @@ benchmark or blind holdout. Report its limitations alongside its counts.
 | U-03 | B's report arrives meanwhile, B not blocked | B is accepted as usual; the reply still ends with the open question |
 | U-04 | User answers q-<n> | Entry is answered; A's held report goes through acceptance against the answer; `deferred` is cleared |
 | U-05 | Lead restarts while q-<n> is open | Resume asks q-<n> again and lists A's held report; no watcher or prompt for A |
+
+## 4.3.0 gate scripts (not yet run)
+
+- RC-A1: a real develop team runs one shared-mode dispatch, acceptance,
+  and commit gate using only the gate scripts. The outcome matches the
+  4.2.0 manual procedure: same input_sha, same changed-file list, same
+  commit_log entry.
+- RC-A2: the implementor edits a file outside its lease. `dirty-baseline.py
+  compare --mode accept` refuses and names the path; the Lead escalates to
+  the User and resets nothing.
