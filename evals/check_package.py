@@ -169,6 +169,10 @@ def main():
           and "## Waiting on User" in read("assets/lead-handoff.md.template"))
     check("archive refuses to remove a busy role and finds archived ids",
           archive_results["busy_rc"] == 2 and archive_results["find_rc"] == 0, archive_results)
+    sys.path.insert(0, str(ROOT / "evals"))
+    import gate_cases
+    gate_cases.run(check)
+
     watcher = read("assets/watch-assignment.sh")
     check("watcher emits current-attempt handoff outcome",
           "emit handoff" in watcher and "HANDOFF READY attempt=$attempt" in watcher
@@ -252,7 +256,14 @@ def main():
           "neither `checkout_mode` nor `code_repos`" in files and "legacy single-root" in files)
     dispatch = read("references/dispatch.md")
     check("dispatch covers dirty baseline, tester gate, and late signals",
-          all(k in dispatch for k in ("dirty-baseline.tsv", "Tester gate", "## 5b. Late signals")))
+          all(k in dispatch for k in ("dirty-baseline.jsonl", "Tester gate", "## 5b. Late signals")))
+    acceptance_doc = read("references/acceptance.md")
+    check("dispatch and acceptance run the gate scripts",
+          all(s in dispatch for s in ("dispatch-precheck.py", "dirty-baseline.py capture"))
+          and all(s in acceptance_doc for s in ("--mode accept", "commit-gate.py precheck",
+                                                 "commit-gate.py verify", "--mode tester-post")))
+    check("SKILL.md lists the gate scripts",
+          all(s in skill for s in ("dispatch-precheck.py", "dirty-baseline.py", "commit-gate.py")))
     check("no reference still names exclusive writer checkouts",
           not any("exclusive writer checkouts" in (ROOT / "references" / n).read_text()
                   for n in ("resume.md", "writer-rules.md", "assemble.md")))

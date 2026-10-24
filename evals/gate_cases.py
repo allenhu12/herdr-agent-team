@@ -1,0 +1,433 @@
+"""Offline cases for the gate scripts. Called by check_package.py.
+
+Each case builds a throwaway team in a temp directory: a real git repository,
+team.yaml, team-state.yaml, and a fake herdr (fixtures/gates/fake-herdr.py).
+No Herdr server and no agent is used.
+"""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+import yaml
+
+ROOT = Path(__file__).resolve().parents[1]
+ASSETS = ROOT / "assets"
+FAKE = ROOT / "evals/fixtures/gates/fake-herdr.py"
+SESSION = "sess-impl-1"
+
+
+def sh(*args, cwd=None):
+    subprocess.run(args, cwd=cwd, check=True, capture_output=True)
+
+
+def git(repo, *args):
+    return subprocess.run(["git", "-C", str(repo), *args], check=True,
+                          capture_output=True, text=True).stdout.strip()
+
+
+class Fixture:
+    def __init__(self, tmp, mode="shared"):
+        self.tmp = Path(os.path.realpath(tmp))
+        self.repo = self.tmp / "app"
+        self.repo.mkdir()
+        sh("git", "init", "-q", "-b", "main", str(self.repo))
+        git(self.repo, "config", "user.email", "t@example.com")
+        git(self.repo, "config", "user.name", "t")
+        (self.repo / "src").mkdir()
+        (self.repo / "src/a.txt").write_text("a\n")
+        (self.repo / "src/b.txt").write_text("b\n")
+        (self.repo / "docs").mkdir()
+        (self.repo / "docs/readme.md").write_text("r\n")
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "-m", "init")
+        self.base = git(self.repo, "rev-parse", "HEAD")
+        self.team_dir = self.tmp / ".herdr-agent-team"
+        self.team_dir.mkdir()
+        self.herdr_state = self.tmp / "herdr.json"
+        self.team = {
+            "schema_version": 2, "template": False, "team_dir": str(self.team_dir),
+            "project_root": str(self.tmp), "checkout_mode": mode,
+            "code_repos": [{"name": "app", "path": str(self.repo), "base_branch": "main", "rules_file": None}],
+            "protected_paths_extra": [], "permissions": "inherit",
+            "roles": [
+                {"name": "t-impl-sol", "kind": "codex", "access": "writer", "checkout_dir": str(self.repo),
+                 "write_ceiling": [f"{self.repo}/**"], "steering": "prompt"},
+                {"name": "t-test-luna", "kind": "codex", "access": "writer", "checkout_dir": str(self.tmp),
+                 "write_ceiling": [f"{self.repo}/build/**"], "steering": "prompt"},
+            ]}
+        self.state = {
+            "schema_version": 2, "team_dir": str(self.team_dir), "project_root": str(self.tmp),
+            "roles": {
+                "t-impl-sol": self.role_rec("w1:p2", str(self.repo), SESSION),
+                "t-test-luna": self.role_rec("w1:p3", str(self.tmp), "sess-test-1"),
+            },
+            "assignments": [], "monitors": [], "commit_log": [],
+            "commit_approval": {"mode": "ask", "granted_by_words": None, "granted_at": None}}
+        self.agents = {
+            "t-impl-sol": self.agent("w1:p2", str(self.repo), SESSION),
+            "t-test-luna": self.agent("w1:p3", str(self.tmp), "sess-test-1"),
+        }
+        self.save()
+
+    @staticmethod
+    def role_rec(pane, cwd, session):
+        return {"pane_id": pane, "kind": "codex", "cwd": cwd,
+                "process_identity": {"agent_session_id": session},
+                "launch_verification": {"process_identity": {"agent_session_id": session},
+                                        "model_footer_text": "gpt-5.6-sol high"}}
+
+    @staticmethod
+    def agent(pane, cwd, session, status="idle"):
+        return {"agent": {"agent": "codex", "agent_status": status, "pane_id": pane, "cwd": cwd,
+                          "agent_session": {"value": session}},
+                "screen": "gpt-5.6-sol high · 80% left"}
+
+    def save(self):
+        (self.team_dir / "team.yaml").write_text(yaml.safe_dump(self.team, sort_keys=False))
+        (self.team_dir / "team-state.yaml").write_text(yaml.safe_dump(self.state, sort_keys=False))
+        self.herdr_state.write_text(json.dumps({"agents": self.agents, "log": []}))
+
+    def reload(self):
+        self.state = yaml.safe_load((self.team_dir / "team-state.yaml").read_text())
+        return self.state
+
+    def env(self):
+        env = dict(os.environ)
+        env["HAT_HERDR_BIN"] = str(FAKE)
+        env["HAT_FAKE_HERDR_STATE"] = str(self.herdr_state)
+        return env
+
+    def run(self, script, *args):
+        proc = subprocess.run([sys.executable, str(ASSETS / script), *args], capture_output=True,
+                              text=True, env=self.env())
+        try:
+            line = json.loads(proc.stdout.strip().splitlines()[-1])
+        except (IndexError, json.JSONDecodeError):
+            line = {"raw": proc.stdout, "stderr": proc.stderr}
+        return proc.returncode, line
+
+    def precheck(self, role="t-impl-sol", kind="source", scope=None, assignment="a1", extra=()):
+        args = ["--team-dir", str(self.team_dir), "--role", role, "--assignment", assignment,
+                "--attempt", "1", "--kind", kind]
+        for s in (scope if scope is not None else [f"{self.repo}/src/**"]):
+            args += ["--scope", s]
+        return self.run("dispatch-precheck.py", *args, *extra)
+
+    def add_assignment(self, aid="a1", assignee="t-impl-sol", kind="source", status="running",
+                       paths=None, outputs=None, attempt=1):
+        item = {"id": aid, "attempt": attempt, "assignee": assignee, "kind": kind,
+                "assignment_status": status, "dispatched_at": "2026-10-24T00:00:00Z",
+                "checkout_dir": self.team["roles"][0]["checkout_dir"],
+                "lease": {"paths": paths if paths is not None else [f"{self.repo}/src/**"],
+                          "outputs": outputs or []}}
+        self.state["assignments"].append(item)
+        self.save()
+        return item
+
+    def db(self, *args):
+        return self.run("dirty-baseline.py", *args)
+
+    def gate(self, *args):
+        return self.run("commit-gate.py", *args)
+
+
+def precheck_cases(check):
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        rc, out = f.precheck()
+        check("precheck passes an idle verified role inside its ceiling", rc == 0, out)
+        check("precheck prints a JSON result line", out.get("script") == "dispatch-precheck", out)
+
+        f.add_assignment("other", status="running")
+        rc, out = f.precheck(assignment="a2")
+        check("precheck refuses a role holding an active Assignment",
+              rc == 1 and any("active Assignment other" in r for r in out["reasons"]), out)
+        f.state["assignments"] = []
+        f.save()
+
+        for status, want in (("working", 1), ("blocked", 1), ("unknown", 3)):
+            f.agents["t-impl-sol"]["agent"]["agent_status"] = status
+            f.save()
+            rc, out = f.precheck()
+            check(f"precheck maps live {status} to exit {want}", rc == want, out)
+        f.agents["t-impl-sol"]["agent"]["agent_status"] = "idle"
+        gone = f.agents.pop("t-impl-sol")
+        f.save()
+        rc, out = f.precheck()
+        check("precheck refuses a gone role", rc == 1 and any("gone" in r for r in out["reasons"]), out)
+        f.agents["t-impl-sol"] = gone
+
+        f.agents["t-impl-sol"]["screen"] = "gpt-6-luna medium"
+        f.save()
+        rc, out = f.precheck()
+        check("precheck cannot tell when the recorded footer is not on screen", rc == 3, out)
+        f.agents["t-impl-sol"]["screen"] = "gpt-5.6-sol high"
+
+        f.agents["t-impl-sol"]["agent"]["agent_session"]["value"] = "sess-other"
+        f.save()
+        rc, out = f.precheck()
+        check("precheck refuses a changed process identity",
+              rc == 1 and any("process changed" in r for r in out["reasons"]), out)
+        f.agents["t-impl-sol"]["agent"]["agent_session"]["value"] = SESSION
+        f.agents["t-impl-sol"]["agent"].pop("cwd")
+        f.save()
+        rc, out = f.precheck()
+        check("precheck cannot tell when Herdr omits cwd", rc == 3, out)
+        f.agents["t-impl-sol"]["agent"]["cwd"] = str(f.repo)
+        f.save()
+
+        rc, out = f.precheck(scope=[f"{f.repo}/src/../../escape/**"])
+        check("precheck refuses a .. escape from the ceiling",
+              rc == 1 and any("outside" in r for r in out["reasons"]), out)
+        os.symlink(f.tmp, f.repo / "src" / "link")
+        rc, out = f.precheck(scope=[f"{f.repo}/src/link/**"])
+        check("precheck refuses a symlink escape from the ceiling", rc == 1, out)
+        os.unlink(f.repo / "src" / "link")
+
+        f.team["roles"][0]["write_ceiling"] = [f"{f.tmp}/**"]
+        f.save()
+        for target in (f"{f.team_dir}/team-state.yaml", f"{f.team_dir}/assignments/a1/assignment.md",
+                       f"{f.tmp}/notes/progress-1.md", f"{f.team_dir}/**"):
+            rc, out = f.precheck(scope=[target])
+            check(f"precheck refuses protected grant {Path(target).name}",
+                  rc == 1 and any("protected" in r for r in out["reasons"]), out)
+        rc, out = f.precheck(scope=[f"{f.team_dir}/assignments/a1/artifacts/**"])
+        check("precheck allows an artifacts grant that cannot reach assignment.md", rc == 0, out)
+        f.team["roles"][0]["write_ceiling"] = [f"{f.repo}/**"]
+        f.save()
+
+        wt = f.tmp / "wt"
+        git(f.repo, "worktree", "add", "-q", str(wt), "-b", "side")
+        f.team["checkout_mode"] = "isolated"
+        f.team["roles"][1]["write_ceiling"] = [f"{wt}/**"]
+        f.team["roles"][1]["checkout_dir"] = str(wt)
+        f.state["roles"]["t-test-luna"]["cwd"] = str(wt)
+        f.agents["t-test-luna"]["agent"]["cwd"] = str(wt)
+        f.save()
+        f.add_assignment("other", assignee="t-impl-sol", paths=[f"{f.repo}/src/a.txt"])
+        rc, out = f.precheck(role="t-test-luna", scope=[f"{wt}/src/**"], assignment="a2")
+        check("precheck refuses a lease overlap across worktrees by repo-relative path",
+              rc == 1 and any("overlaps" in r for r in out["reasons"]), out)
+        rc, out = f.precheck(role="t-test-luna", scope=[f"{wt}/docs/**"], assignment="a2")
+        check("precheck allows disjoint repo-relative leases", rc == 0, out)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        f.state["assignments"].append({"id": "a1", "attempt": 1, "assignee": "t-impl-sol",
+                                       "assignment_status": "pending", "dispatched_at": None})
+        f.save()
+        rc, out = f.precheck()
+        check("precheck allows a queued pending record", rc == 0, out)
+        f.state["assignments"][0].update({"dispatched_at": "x", "lease": None})
+        f.save()
+        rc, out = f.precheck(extra=["--rework"])
+        check("precheck allows a stopped rework of the same Assignment", rc == 0, out)
+        rc, out = f.precheck()
+        check("precheck refuses the same pending record without --rework", rc == 1, out)
+
+        f.state["assignments"] = []
+        f.add_assignment("t1", assignee="t-test-luna", kind="tester", paths=[],
+                         outputs=[f"{f.repo}/build/**"])
+        rc, out = f.precheck(assignment="a2")
+        check("precheck refuses source work while a tester window is open",
+              rc == 1 and any("tester window" in r for r in out["reasons"]), out)
+        f.state["assignments"] = []
+        f.save()
+        rc, out = f.precheck(role="t-test-luna", kind="tester", scope=[], assignment="t1",
+                             extra=["--output", f"{f.repo}/build/**"])
+        check("tester gate refuses a HEAD with no commit_log entry",
+              rc == 1 and any("commit_log" in r for r in out["reasons"]), out)
+
+
+def baseline_cases(check):
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        (f.repo / "src/a.txt").write_text("user edit\n")             # in lease, dirty
+        (f.repo / "docs/readme.md").write_text("user doc\n")         # outside lease, dirty
+        (f.repo / "src/new\nline.txt").write_text("odd\n")           # newline name, untracked
+        os.symlink("a.txt", f.repo / "src/ln")                       # symlink, untracked
+        (f.repo / "src/b.txt").write_text("staged\n")
+        git(f.repo, "add", "src/b.txt")
+        (f.repo / "src/b.txt").write_text("b\n")                     # staged-only change
+        f.add_assignment("a1", status="pending")
+        rc, out = f.db("capture", "--team-dir", str(f.team_dir), "--assignment", "a1",
+                       "--attempt", "1", "--record")
+        check("capture records the dirty baseline", rc == 0, out)
+        state = f.reload()
+        item = state["assignments"][0]
+        lines = [json.loads(x) for x in Path(item["dirty_baseline"]).read_text().splitlines()]
+        import base64
+        names = {base64.b64decode(e["path_b64"]).decode() for e in lines}
+        check("baseline keeps a newline file name losslessly", "src/new\nline.txt" in names, sorted(names))
+        by = {base64.b64decode(e["path_b64"]).decode(): e for e in lines}
+        check("baseline records a symlink target, a staged-only index blob, and a clean worktree",
+              by["src/ln"]["worktree"]["type"] == "symlink"
+              and by["src/b.txt"]["index"] is not None
+              and by["src/b.txt"]["xy"][0] == "M", by.get("src/b.txt"))
+        dad = {d["path"] for d in item["dirty_at_dispatch"]}
+        check("only in-lease dirty files are snapshotted",
+              "src/a.txt" in dad and "docs/readme.md" not in dad, sorted(dad))
+        snap = next(d for d in item["dirty_at_dispatch"] if d["path"] == "src/a.txt")
+        check("snapshot holds the pre-dispatch content", Path(snap["snapshot"]).read_text() == "user edit\n")
+        check("capture recorded input_sha", item["repositories"][0]["input_sha"] == f.base)
+        rc, out = f.db("capture", "--team-dir", str(f.team_dir), "--assignment", "a1", "--attempt", "1")
+        check("an identical capture rerun passes", rc == 0, out)
+        (f.repo / "src/c.txt").write_text("late\n")
+        before = Path(item["dirty_baseline"]).read_text()
+        rc, out = f.db("capture", "--team-dir", str(f.team_dir), "--assignment", "a1", "--attempt", "1")
+        check("a different capture for the same attempt is refused and the file kept",
+              rc == 1 and Path(item["dirty_baseline"]).read_text() == before, out)
+        os.unlink(f.repo / "src/c.txt")
+
+        args = ["compare", "--team-dir", str(f.team_dir), "--assignment", "a1", "--attempt", "1",
+                "--mode", "accept"]
+        (f.repo / "src/a.txt").write_text("user edit\nagent line\n")
+        rc, out = f.db(*args)
+        check("accept compare passes in-lease edits", rc == 0 and out["changed"]["app"] == ["src/a.txt"], out)
+        snap_json = json.loads(Path(out["accept_snapshot"]).read_text())
+        entry = snap_json["repos"]["app"]["paths"][0]
+        check("diff base for a dirty_at_dispatch file is its snapshot",
+              entry["dirty_at_dispatch"] and entry["diff_base"].endswith("snapshots/app/src/a.txt"), entry)
+        (f.repo / "docs/readme.md").write_text("agent touched doc\n")
+        rc, out = f.db(*args)
+        check("accept compare refuses a changed baseline path outside the lease",
+              rc == 1 and any("docs/readme.md" in r for r in out["reasons"]), out)
+        (f.repo / "docs/readme.md").write_text("user doc\n")
+        (f.repo / "docs/new.md").write_text("n\n")
+        rc, out = f.db(*args)
+        check("accept compare refuses a new dirty path outside the lease", rc == 1, out)
+        os.unlink(f.repo / "docs/new.md")
+        (f.repo / "src/a.txt").write_text("user edit\n")
+        git(f.repo, "stash", "-q", "--include-untracked")
+        (f.repo / "x").write_text("x")
+        git(f.repo, "add", "x")
+        git(f.repo, "commit", "-q", "-m", "moved")
+        rc, out = f.db(*args)
+        check("accept compare refuses a moved HEAD", rc == 1 and any("HEAD" in r for r in out["reasons"]), out)
+
+
+def commit_cases(check):
+    def prepared(tmp):
+        f = Fixture(tmp)
+        (f.repo / "src/b.txt").write_text("before dispatch\n")
+        f.add_assignment("a1", status="running")
+        f.db("capture", "--team-dir", str(f.team_dir), "--assignment", "a1", "--attempt", "1", "--record")
+        (f.repo / "src/a.txt").write_text("agent\n")
+        (f.repo / "src/b.txt").write_text("before dispatch\nagent\n")
+        rc, out = f.db("compare", "--team-dir", str(f.team_dir), "--assignment", "a1", "--attempt", "1",
+                       "--mode", "accept", "--record")
+        assert rc == 0, out
+        f.reload()
+        f.state["assignments"][0]["commit"].update(
+            {"status": "approved", "approved_by": "user", "confirmed_files": ["src/a.txt", "src/b.txt"]})
+        f.save()
+        return f
+
+    def gate(f, step, *extra):
+        return f.gate(step, "--team-dir", str(f.team_dir), "--assignment", "a1", *extra)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        f = prepared(tmp)
+        rc, out = gate(f, "precheck")
+        check("commit precheck passes an approved, unchanged list", rc == 0, out)
+        f.state["assignments"][0]["commit"]["status"] = "awaiting_user"
+        f.state["commit_approval"] = {"mode": "auto", "granted_by_words": "auto commit ok", "granted_at": "t"}
+        f.save()
+        rc, out = gate(f, "precheck")
+        check("auto mode still asks the User for a dirty_at_dispatch file",
+              rc == 1 and any("dirty_at_dispatch" in r for r in out["reasons"]), out)
+        f.state["assignments"][0]["commit"]["status"] = "approved"
+        f.state["commit_approval"]["mode"] = "ask"
+        f.save()
+        (f.repo / "src/a.txt").write_text("changed after approval\n")
+        rc, out = gate(f, "precheck")
+        check("commit precheck refuses content changed after approval",
+              rc == 1 and any("after the User approved" in r for r in out["reasons"]), out)
+        (f.repo / "src/a.txt").write_text("agent\n")
+        (f.repo / "src/stray.txt").write_text("s\n")
+        git(f.repo, "add", "src/stray.txt")
+        rc, out = gate(f, "precheck")
+        check("commit precheck refuses a stray staged entry", rc == 1, out)
+        git(f.repo, "rm", "-q", "--cached", "src/stray.txt")
+        os.unlink(f.repo / "src/stray.txt")
+        rc, out = gate(f, "precheck")
+        check("commit precheck passes again once the index is clean", rc == 0, out)
+
+        git(f.repo, "commit", "-q", "-m", "work", "--", "src/a.txt", "src/b.txt")
+        state_before = (f.team_dir / "team-state.yaml").read_text()
+        rc, out = gate(f, "verify")
+        check("commit verify passes one exact commit", rc == 0, out)
+        check("verify without --record writes nothing",
+              (f.team_dir / "team-state.yaml").read_text() == state_before)
+        rc, out = gate(f, "verify", "--record")
+        state = f.reload()
+        item = state["assignments"][0]
+        check("verify --record logs the commit and the post-commit baseline",
+              rc == 0 and state["commit_log"][-1]["sha"] == git(f.repo, "rev-parse", "HEAD")
+              and item["commit"]["status"] == "committed" and Path(item["post_commit_baseline"]).exists()
+              and item["repositories"][0]["result_sha"] == git(f.repo, "rev-parse", "HEAD"), out)
+
+        item["assignment_status"] = "succeeded"
+        f.save()
+        rc, out = f.precheck(role="t-test-luna", kind="tester", scope=[], assignment="t1",
+                             extra=["--output", f"{f.repo}/build/**"])
+        check("end to end: the tester gate passes on the accepted commit", rc == 0, out)
+        f.add_assignment("t1", assignee="t-test-luna", kind="tester", paths=[],
+                         outputs=[f"{f.repo}/build/**"])
+        f.state["assignments"][-1]["checkout_dir"] = str(f.tmp)
+        f.save()
+        f.db("capture", "--team-dir", str(f.team_dir), "--assignment", "t1", "--attempt", "1", "--record")
+        rc, out = f.db("compare", "--team-dir", str(f.team_dir), "--assignment", "t1", "--attempt", "1",
+                       "--mode", "tester-pre")
+        check("end to end: tester-pre passes after capture", rc == 0, out)
+        (f.repo / "build").mkdir()
+        (f.repo / "build/out.log").write_text("ok\n")
+        rc, out = f.db("compare", "--team-dir", str(f.team_dir), "--assignment", "t1", "--attempt", "1",
+                       "--mode", "tester-post")
+        check("tester-post allows declared outputs", rc == 0, out)
+        (f.repo / "src/a.txt").write_text("tester touched source\n")
+        rc, out = f.db("compare", "--team-dir", str(f.team_dir), "--assignment", "t1", "--attempt", "1",
+                       "--mode", "tester-post")
+        check("tester-post refuses a tracked source change", rc == 1, out)
+
+    for label, mutate in (
+            ("an unconfirmed file", lambda f: (Path(f.repo / "src/extra.txt").write_text("e\n"),
+                                               git(f.repo, "add", "src/extra.txt"),
+                                               git(f.repo, "commit", "-q", "-m", "w"))),
+            ("a missing confirmed file", lambda f: git(f.repo, "commit", "-q", "-m", "w", "--", "src/a.txt")),
+            ("two commits", lambda f: (git(f.repo, "commit", "-q", "-m", "w1", "--", "src/a.txt"),
+                                       git(f.repo, "commit", "-q", "-m", "w2", "--", "src/b.txt"))),
+            ("another branch", lambda f: (git(f.repo, "switch", "-q", "-c", "other"),
+                                          git(f.repo, "commit", "-q", "-m", "w", "--", "src/a.txt", "src/b.txt"))),
+            ("different committed content", lambda f: (Path(f.repo / "src/a.txt").write_text("swapped\n"),
+                                                       git(f.repo, "commit", "-q", "-m", "w", "--",
+                                                           "src/a.txt", "src/b.txt")))):
+        with tempfile.TemporaryDirectory() as tmp:
+            f = prepared(tmp)
+            mutate(f)
+            before = (f.team_dir / "team-state.yaml").read_text()
+            rc, out = gate(f, "verify", "--record")
+            check(f"commit verify refuses {label} and writes nothing",
+                  rc == 1 and (f.team_dir / "team-state.yaml").read_text() == before, out)
+
+
+def robustness_cases(check):
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        (f.team_dir / "team-state.yaml").write_text("roles: [unclosed\n")
+        rc, out = f.precheck()
+        check("a broken team-state.yaml gives cannot tell", rc == 3, out)
+        f.state["team_dir"] = "/elsewhere"
+        f.save()
+        rc, out = f.precheck()
+        check("a team_dir mismatch gives cannot tell", rc == 3, out)
+
+
+def run(check):
+    precheck_cases(check)
+    baseline_cases(check)
+    commit_cases(check)
+    robustness_cases(check)
