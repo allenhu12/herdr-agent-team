@@ -133,8 +133,19 @@ python3 skill/assets/dirty-baseline.py capture --team-dir <team_dir> \
    cancellation proof in monitoring.md), no implementor source Assignment
    pending or running, and the dirty state equal to that accepted
    Assignment's `post_commit_baseline`. `dispatch-precheck.py --kind tester`
-   checks these. After capture, `dirty-baseline.py compare --mode
-   tester-pre` checks `HEAD` and the tester's own fresh baseline. Any
+   checks these; pass `--repo <name>` for each repository the tester
+   tests (required when the team has more than one). After capture,
+   `dirty-baseline.py compare --mode tester-pre` checks `HEAD` and the
+   tester's own fresh baseline.
+
+   **Data from before 4.3.0.** A commit made before 4.3.0 has no
+   `post_commit_baseline`. The gate then compares with that Assignment's
+   dispatch baseline minus the committed files; when no baseline was ever
+   recorded (for example a commit-only Assignment), it passes that
+   repository with a warning and only tester-pre protects the test (the
+   4.2.0 rule). A record without `kind` counts as source work when its
+   assignee writes the repository, and as a tester window when the
+   assignee's name contains `-tester-`. Any
    miss rejects the dispatch. The tester's lease holds only its declared
    generated/cache/output paths (`lease.outputs`), and its verification
    commands carry an explicit cwd per repository.

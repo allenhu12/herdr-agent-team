@@ -612,7 +612,106 @@ def inbox_cases(check):
               out.get("outcome") == "superseded", out)
 
 
+def legacy_cases(check):
+    """Data written under 4.2.0: dirty-baseline.tsv, no accept snapshot, no
+    post_commit_baseline, dirty_at_dispatch without path_b64."""
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        nested = f.repo / "common"
+        nested.mkdir()
+        sh("git", "init", "-q", str(nested))
+        (nested / "n.txt").write_text("n")
+        (f.repo / "docs/readme.md").write_text("user doc\n")
+        doc_blob = git(f.repo, "hash-object", "docs/readme.md")
+        doc_index = git(f.repo, "ls-files", "-s", "--", "docs/readme.md").split()[1]
+        item = f.add_assignment("old", status="succeeded", paths=[f"{f.repo}/src/a.txt"])
+        ws = f.team_dir / "assignments" / "old" / "artifacts" / "attempt-1"
+        ws.mkdir(parents=True)
+        tsv = ws / "dirty-baseline.tsv"
+        tsv.write_text(f"app\tcommon/\t??\tnested-repo\tnone\napp\tdocs/readme.md\t M\t{doc_blob}\t{doc_index}\n")
+        item.update({"repositories": [{"name": "app", "input_sha": f.base, "result_sha": None}],
+                     "dirty_baseline": str(tsv), "dirty_at_dispatch": None,
+                     "commit": {"status": "none", "confirmed_files": None, "approved_by": None, "approved_at": None}})
+        f.save()
+        (f.repo / "src/a.txt").write_text("agent fix\n")
+        args = ["compare", "--team-dir", str(f.team_dir), "--assignment", "old", "--attempt", "1", "--mode", "accept"]
+        rc, out = f.db(*args, "--record")
+        check("legacy TSV: accept compare reads a 4.2.0 baseline with a nested repo",
+              rc == 0 and out["changed"]["app"] == ["src/a.txt"], out)
+        f.reload()
+        f.state["assignments"][0]["commit"].update(
+            {"status": "approved", "approved_by": "user", "confirmed_files": ["src/a.txt"]})
+        f.save()
+        rc, out = f.gate("precheck", "--team-dir", str(f.team_dir), "--assignment", "old")
+        check("legacy TSV: a hand-accepted 4.2.0 Assignment reaches the commit gate after one compare --record",
+              rc == 0, out)
+        (f.repo / "docs/readme.md").write_text("changed outside the lease\n")
+        rc, out = f.db(*args)
+        check("legacy TSV: a changed out-of-scope baseline file is still refused",
+              rc == 1 and any("docs/readme.md" in r for r in out["reasons"]), out)
+        (f.repo / "docs/readme.md").write_text("user doc\n")
+
+        git(f.repo, "commit", "-q", "-m", "fix", "--", "src/a.txt")
+        head = git(f.repo, "rev-parse", "HEAD")
+        f.reload()
+        f.state["commit_log"] = [{"assignment_id": "old", "repository": "app", "sha": head,
+                                  "files": ["src/a.txt"], "approved_by": "user", "at": "t"}]
+        f.state["assignments"][0]["commit"]["status"] = "committed"
+        f.save()
+        rc, out = f.precheck(role="t-test-luna", kind="tester", scope=[], assignment="t1",
+                             extra=["--output", f"{f.repo}/build/**"])
+        check("legacy tester gate: a 4.2.0 commit without post_commit_baseline uses its dispatch baseline",
+              rc == 0, out)
+        (f.repo / "src/b.txt").write_text("uncommitted\n")
+        rc, out = f.precheck(role="t-test-luna", kind="tester", scope=[], assignment="t1",
+                             extra=["--output", f"{f.repo}/build/**"])
+        check("legacy tester gate: an extra dirty source file still refuses", rc == 1, out)
+        (f.repo / "src/b.txt").write_text("b\n")
+        archived = f.state["assignments"].pop(0)
+        f.save()
+        (f.team_dir / "state-archive.yaml").write_text(
+            __import__("yaml").safe_dump({"kind": "assignment", "record": archived}, sort_keys=False))
+        rc, out = f.precheck(role="t-test-luna", kind="tester", scope=[], assignment="t1",
+                             extra=["--output", f"{f.repo}/build/**"])
+        check("legacy tester gate: the accepted Assignment is found in state-archive.yaml", rc == 0, out)
+        (f.team_dir / "state-archive.yaml").unlink()
+        rc, out = f.precheck(role="t-test-luna", kind="tester", scope=[], assignment="t1",
+                             extra=["--output", f"{f.repo}/build/**"])
+        check("legacy tester gate: a commit with no Assignment record passes with a 4.2.0-rule warning",
+              rc == 0 and any("legacy commit" in w for w in out.get("warnings", [])), out)
+        other = f.tmp / "other"
+        other.mkdir()
+        sh("git", "init", "-q", "-b", "main", str(other))
+        git(other, "config", "user.email", "t@example.com")
+        git(other, "config", "user.name", "t")
+        (other / "x").write_text("x")
+        git(other, "add", "-A")
+        git(other, "commit", "-q", "-m", "x")
+        f.team["code_repos"].append({"name": "other", "path": str(other), "base_branch": "main", "rules_file": None})
+        f.save()
+        rc, out = f.precheck(role="t-test-luna", kind="tester", scope=[], assignment="t1",
+                             extra=["--output", f"{f.repo}/build/**"])
+        check("tester gate with several code repositories needs --repo", rc == 3, out)
+        rc, out = f.precheck(role="t-test-luna", kind="tester", scope=[], assignment="t1",
+                             extra=["--output", f"{f.repo}/build/**", "--repo", "app"])
+        check("tester gate checks only the named repository (an unrelated repo's HEAD is ignored)", rc == 0, out)
+        f.state["assignments"].append({"id": "legacy-run", "attempt": 1, "assignee": "t-impl-sol",
+                                       "assignment_status": "running", "dispatched_at": "t",
+                                       "lease": {"paths": [f"{f.repo}/src/**"]}})
+        f.save()
+        rc, out = f.precheck(role="t-test-luna", kind="tester", scope=[], assignment="t1",
+                             extra=["--output", f"{f.repo}/build/**", "--repo", "app"])
+        check("tester gate treats a running pre-4.3.0 writer Assignment (no kind) as source work",
+              rc == 1 and any("legacy-run" in r for r in out["reasons"]), out)
+        f.state["assignments"][-1].update({"id": "legacy-test", "assignee": "t-tester-luna", "lease": {"paths": []}})
+        f.save()
+        rc, out = f.precheck(assignment="a2", scope=[f"{f.repo}/docs/**"])
+        check("source dispatch sees a running pre-4.3.0 tester Assignment (no kind) as an open tester window",
+              rc == 1 and any("tester window open (legacy-test)" in r for r in out["reasons"]), out)
+
+
 def run(check):
+    legacy_cases(check)
     inbox_cases(check)
     precheck_cases(check)
     baseline_cases(check)

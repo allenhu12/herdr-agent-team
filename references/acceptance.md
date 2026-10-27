@@ -25,6 +25,10 @@ and declared generated outputs, not arbitrary unknown files.
 When the Assignment has a `repositories` list (dispatch.md step 2a):
 
 The implementor does not commit before this check (dispatch.md step 2a).
+An Assignment dispatched before 4.3.0 keeps its `dirty-baseline.tsv`; the
+script reads it. If it was accepted by hand before this version, still run
+the command below once (with `--record`) before the commit gate, which
+needs its accept snapshot.
 Steps 1–3 run as one command:
 
 ```bash

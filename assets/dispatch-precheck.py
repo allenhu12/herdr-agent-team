@@ -5,7 +5,13 @@ Usage:
   dispatch-precheck.py --team-dir <abs> --role <name> --assignment <id> --attempt <n>
                        --kind source|tester|reader|knowledge
                        [--scope <abs path or dir/**> ...] [--output <abs path or dir/**> ...]
-                       [--rework]
+                       [--rework] [--repo <code repo name> ...]
+
+--repo (tester only) names the repositories the tester tests; it is required
+when the team has more than one code repository. A commit made before 4.3.0
+has no post-commit baseline: the gate then compares with that Assignment's
+dispatch baseline minus the committed files, or, with no baseline at all,
+passes that repository with a warning (the 4.2.0 rule).
 
 Reads: team.yaml, team-state.yaml (roles, assignments, commit_log), live
 Herdr state (`herdr agent get`, `herdr agent read --lines 3`) and git
@@ -117,29 +123,40 @@ def check_scope(team, args, role, refuse):
                 refuse.append(f"checkout {mine} already has writer {item.get('assignee')}")
 
 
-def repo_heads(team):
-    heads = {}
-    for repo in team.code_repos():
-        heads[repo["name"]] = g.git(repo["path"], "rev-parse", "HEAD")
-    return heads
-
-
-def check_shared(team, args, role_name, refuse, unknown):
+def check_shared(team, args, role_name, refuse, unknown, warnings):
     if team.team.get("checkout_mode") != "shared":
         return
     active = [a for a in team.assignments() if g.is_dispatched(a) and a.get("id") != args.assignment]
     if args.kind == "source":
         for item in active:
-            if item.get("kind") == "tester":
+            # A record from before 4.3.0 has no kind: the template's tester role names say "-tester-".
+            legacy_tester = item.get("kind") is None and "-tester-" in str(item.get("assignee"))
+            if item.get("kind") == "tester" or legacy_tester:
                 refuse.append(f"tester window open ({item.get('id')}); no source work until it settles")
         return
     if args.kind != "tester":
         return
     log = team.state.get("commit_log") or []
-    for item in active:
-        if item.get("kind") == "source":
-            refuse.append(f"source Assignment {item.get('id')} is still {item.get('assignment_status')}")
-    for name, head in repo_heads(team).items():
+    names = list(args.repo)
+    if not names:
+        if len(team.code_repos()) == 1:
+            names = [team.code_repos()[0]["name"]]
+        else:
+            unknown.append("name the repositories this tester tests with --repo (the team has "
+                           f"{len(team.code_repos())} code repositories)")
+            return
+    db = load_sibling("dirty-baseline.py")
+    for name in names:
+        repo = team.repo(name)
+        if repo is None:
+            refuse.append(f"--repo {name} is not in team.yaml code_repos")
+            continue
+        legacy_writers = repo_writers(team, repo, role_name)
+        for item in active:
+            # A record from before 4.3.0 has no kind: a writer's Assignment counts as source work.
+            if item.get("kind") == "source" or (item.get("kind") is None and item.get("assignee") in legacy_writers):
+                refuse.append(f"source Assignment {item.get('id')} is still {item.get('assignment_status')}")
+        head = g.git(repo["path"], "rev-parse", "HEAD")
         entries = [c for c in log if c.get("repository") == name]
         if not entries:
             refuse.append(f"{name}: HEAD {head[:12]} has no commit_log entry; tester gate needs one")
@@ -148,23 +165,62 @@ def check_shared(team, args, role_name, refuse, unknown):
         if last.get("sha") != head:
             refuse.append(f"{name}: HEAD {head[:12]} is not the last accepted commit {str(last.get('sha'))[:12]}")
             continue
-        source = team.assignment(last.get("assignment_id"))
-        if source is None:
-            unknown.append(f"{name}: accepted Assignment {last.get('assignment_id')} not in state (archived?)")
+        source = team.assignment(last.get("assignment_id")) or archived_assignment(team, last.get("assignment_id"))
+        writers = [source.get("assignee")] if source and source.get("assignee") else repo_writers(team, repo, role_name)
+        for writer in writers:
+            state = g.agent_state(g.agent_info(writer))
+            if state not in ("idle", "done"):
+                refuse.append(f"implementor {writer} is {state}; tester gate needs it idle")
+        if source and source.get("post_commit_baseline"):
+            baseline = [e for e in db.read_entries(source["post_commit_baseline"]) if e.get("repo") == name]
+        elif source and source.get("dirty_baseline"):
+            # Committed before 4.3.0: no post-commit baseline. Expect the source's
+            # dispatch baseline minus the files that commit took.
+            committed = {str(f) for f in last.get("files") or []}
+            baseline = [e for e in db.read_entries(source["dirty_baseline"])
+                        if e.get("repo") == name and e.get("path") not in committed]
+        else:
+            # Committed before 4.3.0 with no baseline at all (for example a
+            # commit-only Assignment, or one no longer on record): the 4.2.0
+            # rule applies, so only the tester's own dispatch capture and
+            # tester-pre compare protect this test. Say so.
+            warnings.append(f"{name}: legacy commit {str(last.get('sha'))[:12]} from "
+                            f"{last.get('assignment_id')} has no recorded baseline; drift since that commit "
+                            "is not checked (4.2.0 rule); tester-pre still checks the tester's own baseline")
             continue
-        implementor = source.get("assignee")
-        state = g.agent_state(g.agent_info(implementor)) if implementor else "unknown"
-        if state not in ("idle", "done"):
-            refuse.append(f"implementor {implementor} is {state}; tester gate needs it idle")
-        baseline_path = source.get("post_commit_baseline")
-        if not baseline_path:
-            unknown.append(f"{name}: accepted Assignment {source.get('id')} has no post_commit_baseline")
-            continue
-        db = load_sibling("dirty-baseline.py")
-        baseline = [e for e in db.read_entries(baseline_path) if e.get("repo") == name]
-        current = db.scan_repo(team.repo(name))
-        diffs = db.baseline_drift(baseline, current, team.repo(name)["path"], [])
+        current = db.scan_repo(repo)
+        diffs = db.baseline_drift(baseline, current, repo["path"], [])
         refuse.extend(f"{name}: {d}" for d in diffs)
+
+
+def repo_writers(team, repo, exclude):
+    """Writer roles whose ceiling reaches into a code repository."""
+    root = g.realpath(repo["path"])
+    out = []
+    for role in team.team.get("roles") or []:
+        if role.get("name") == exclude or role.get("access") != "writer":
+            continue
+        for grant in role.get("write_ceiling") or []:
+            if not os.path.isabs(os.path.expanduser(str(grant))):
+                continue
+            prefix, _ = g.split_glob(g.normalize_glob(grant))
+            if g.under(prefix, root) or g.under(root, prefix):
+                out.append(role["name"])
+                break
+    return out
+
+
+def archived_assignment(team, assignment_id):
+    """The newest archived record of an Assignment (archive-state.py format), or None."""
+    path = team.dir / "state-archive.yaml"
+    if not assignment_id or not path.exists():
+        return None
+    found = None
+    import yaml
+    for doc in yaml.load_all(path.read_text(encoding="utf-8"), Loader=g.StringLoader):
+        if doc and doc.get("kind") == "assignment" and (doc.get("record") or {}).get("id") == assignment_id:
+            found = doc["record"]
+    return found
 
 
 def load_sibling(filename):
@@ -186,6 +242,8 @@ def main(argv):
     parser.add_argument("--scope", action="append", default=[])
     parser.add_argument("--output", action="append", default=[])
     parser.add_argument("--rework", action="store_true")
+    parser.add_argument("--repo", action="append", default=[],
+                        help="tester only: a code repository this tester tests (repeat)")
     args = parser.parse_args(argv)
 
     def body():
@@ -209,9 +267,10 @@ def main(argv):
             check_model(args.role, team.role_state(args.role), refuse, unknown)
         check_busy(team, args, args.role, refuse)
         check_scope(team, args, role, refuse)
-        check_shared(team, args, args.role, refuse, unknown)
+        warnings = []
+        check_shared(team, args, args.role, refuse, unknown, warnings)
         code = g.REFUSE if refuse else (g.CANNOT_TELL if unknown else g.PASS)
-        return g.emit(SCRIPT, code, refuse + unknown, role=args.role, assignment=args.assignment,
+        return g.emit(SCRIPT, code, refuse + unknown, warnings=warnings, role=args.role, assignment=args.assignment,
                       attempt=args.attempt, kind=args.kind, live_state=state)
 
     return g.run_gate(SCRIPT, body)

@@ -26,6 +26,16 @@ their raw bytes (`path_b64`) so any file name survives; `path` is display
 only. Each entry has repo, xy, path_b64, path, orig_path_b64, worktree
 {type: file|symlink|dir|absent, blob|target} and index {mode, blob} or null.
 
+Legacy baselines: an Assignment dispatched before 4.3.0 recorded
+dirty-baseline.tsv (repo, path, status, worktree hash or `deleted` or a
+word such as `nested-repo`, index blob or `none`). read_entries reads it
+into the same entry shape marked `legacy: true`; comparisons against a
+legacy entry use the index blob only (the TSV has no mode) and treat a
+non-hash worktree word as a directory. dirty_at_dispatch records without
+path_b64 are matched by path. An Assignment accepted by hand before 4.3.0
+runs `compare --mode accept --record` once to get its accept snapshot
+before the commit gate.
+
 Exit: 0 pass, 1 refuse, 2 usage, 3 cannot tell.
 """
 import argparse
@@ -121,11 +131,40 @@ def write_entries(path, entries):
     return text
 
 
+HEX40 = set("0123456789abcdef")
+
+
+def legacy_worktree(token):
+    if token == "deleted":
+        return {"type": "absent"}
+    if len(token) in (40, 64) and set(token) <= HEX40:
+        return {"type": "file", "blob": token}
+    return {"type": "dir"}  # nested-repo and other non-file words from 4.2.0
+
+
+def read_legacy_tsv(lines, path):
+    entries = []
+    for number, line in enumerate(lines, 1):
+        if not line.strip():
+            continue
+        fields = line.split("\t")
+        if len(fields) != 5:
+            raise g.CannotTell(f"unreadable legacy baseline {path}:{number}: expected 5 tab-separated fields")
+        repo, rel, xy, work, index = fields
+        entries.append({
+            "repo": repo, "xy": xy, "path_b64": b64(rel.encode("utf-8")), "path": rel,
+            "orig_path_b64": None, "worktree": legacy_worktree(work),
+            "index": None if index in ("none", "") else {"mode": None, "blob": index}, "legacy": True})
+    return entries
+
+
 def read_entries(path):
     try:
         lines = Path(path).read_text(encoding="utf-8").splitlines()
     except FileNotFoundError:
         raise g.CannotTell(f"missing baseline: {path}")
+    if str(path).endswith(".tsv"):
+        return read_legacy_tsv(lines, path)
     try:
         return [json.loads(line) for line in lines if line.strip()]
     except json.JSONDecodeError as exc:
@@ -136,9 +175,12 @@ def abs_path(repo_path, entry):
     return os.path.join(g.realpath(repo_path), os.fsdecode(unb64(entry["path_b64"])))
 
 
-def state_key(entry):
-    return (entry["xy"], json.dumps(entry["worktree"], sort_keys=True),
-            json.dumps(entry["index"], sort_keys=True))
+def state_key(entry, legacy=False):
+    index = entry["index"]
+    if legacy and index is not None:
+        index = {"blob": index.get("blob")}  # the 4.2.0 TSV recorded no mode
+    return (entry["xy"].strip() if legacy else entry["xy"], json.dumps(entry["worktree"], sort_keys=True),
+            json.dumps(index, sort_keys=True))
 
 
 def changes(baseline, current):
@@ -148,7 +190,8 @@ def changes(baseline, current):
     out = []
     for key in sorted(set(before) | set(after)):
         a, b = before.get(key), after.get(key)
-        if a is None or b is None or state_key(a) != state_key(b):
+        legacy = bool(a and a.get("legacy"))
+        if a is None or b is None or state_key(a, legacy) != state_key(b, legacy):
             out.append((key, a, b))
     return out
 
@@ -314,7 +357,8 @@ def compare(args):
 
     snapshot = {"assignment": item["id"], "attempt": args.attempt, "repos": {}}
     changed = {}
-    snaps = {(d["repo"], d["path_b64"]): d for d in item.get("dirty_at_dispatch") or []}
+    snaps = {(d.get("repo"), d.get("path_b64") or b64(str(d.get("path", "")).encode("utf-8"))): d
+             for d in item.get("dirty_at_dispatch") or []}
     for repo in repos:
         base = [e for e in baseline if e["repo"] == repo["name"]]
         cur = [e for e in current_all if e["repo"] == repo["name"]]

@@ -10,6 +10,24 @@ new team files or breaks old ones raises the first number.
 `schema_version` in team.yaml and team-state.yaml is a different number:
 it is the state file format, and it stays 2.
 
+## 4.5.1 - 2026-10-27
+
+### Fixed
+
+- Teams built with 4.2.0 can finish work under the new gates:
+  `dirty-baseline.py` reads the old `dirty-baseline.tsv` (nested-repo and
+  deleted words, index blob without mode) and old `dirty_at_dispatch`
+  records without `path_b64`; a hand-accepted Assignment gets its accept
+  snapshot with one `compare --mode accept --record`.
+- Tester gate: `--repo` names the repositories under test (required with
+  several code repositories), so an unrelated repository no longer
+  blocks it. A commit from before 4.3.0 is checked against its
+  Assignment's dispatch baseline, or, with no baseline on record, passes
+  with a warning (the 4.2.0 rule). The accepted Assignment is also looked
+  up in `state-archive.yaml`.
+- Records without `kind`: a writer's running Assignment counts as source
+  work, and a `-tester-` role's as an open tester window.
+
 ## 4.5.0 - 2026-10-27
 
 ### Added
