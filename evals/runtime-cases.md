@@ -192,3 +192,21 @@ Run each case on both Claude Code and Codex roles.
   after the handshake message is acknowledged.
 - RC-B9: rework retires attempt 1's handoff request; attempt 2 is not
   affected.
+
+## 4.5.0 team monitor (not yet run)
+
+Run with a Claude Code Lead, a Codex CLI Lead, and a cursor-agent Lead.
+
+- RC-C1: one dispatch → report → doorbell → drain → acceptance → ack. The
+  Lead uses no host background task.
+- RC-C2: the Lead exits while a Sub-Agent works; the report lands; a new
+  Lead runs Resume and drains it.
+- RC-C3: the monitor process is killed; the next drain reports it not
+  healthy, `start` brings it back, and no wake repeats.
+- RC-C4: the User types in the Lead pane (without submitting) past the
+  idle hold; record what the doorbell does to the draft on each CLI and
+  set the hold default from it.
+- RC-C5: three Assignments finish together; one doorbell, one drain.
+- RC-C6: a `monitor: watcher` team behaves as in 4.4.0.
+- RC-C7: a queued report wake and a simultaneous User correction to its
+  acceptance criteria; the Lead applies the correction first.

@@ -130,6 +130,17 @@ Turning it off: `inbox.py retire --role <role> --all --reason "steering
 off"`, then set `steering: prompt`, re-render, and tell the role in one
 prompt that the inbox is no longer used.
 
+## Switch between watcher and team monitor
+
+Only when no Assignment is dispatched (refuse otherwise and say which are).
+
+- **watcher → team:** stop every watcher in `monitors` and clear the list,
+  set `monitor: team`, re-render the Role Tree, then `team-monitor.py
+  start` and record it (assemble.md step 6).
+- **team → watcher:** `team-monitor.py stop`, drain and handle every
+  queued wake, then set `monitor: watcher` and re-render. Later dispatches
+  use the watcher again.
+
 ## Replace the Lead
 
 - **Session Lead (`lead.mode: session`)**: it cannot replace itself from

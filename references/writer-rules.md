@@ -155,6 +155,8 @@ lease says. There are two layers:
   <team_dir>/role-tree.md
   <team_dir>/assignments/*/assignment.md
   <team_dir>/inbox/**
+  <team_dir>/monitor/**
+  <team_dir>/wake-queue/**
   <project_root>/00-current/**
   <project_root>/**/progress*.md
   <project_root>/**/item-list.json
@@ -185,6 +187,13 @@ a name pattern. Check role ceilings at Assemble and Adjust, and Assignment
 leases at Dispatch; reject as above. Core entries
 do not live in team.yaml, so no edit can drop them; refuse a User request to
 remove one and explain why.
+
+## Monitor folders
+
+`<team_dir>/monitor/` and `<team_dir>/wake-queue/` are Lead-owned. The
+team monitor writes them on the Lead's behalf, and the Lead writes only
+hold markers and acknowledgements there, through `team-monitor.py`. No
+lease may grant either folder.
 
 ## Inbox folders
 

@@ -19,6 +19,9 @@ A read-only reconciliation sweep. Nothing in this workflow writes anything.
    this Status pass, the Lead may also read the bottom line of the role's
    pane for its CLI context figure. Both are hints only; neither proves
    completion or changes the state.
+2a. For `monitor: team`, run `team-monitor.py status` (read-only): show
+   whether the monitor is healthy, the number of unacknowledged wakes, and
+   any quarantined targets. Do not drain or ack here.
 2b. For roles with `steering: inbox`, run `inbox.py status` (read-only;
    it never rings). Flag a pending message that has no `kind: inbox`
    monitor.

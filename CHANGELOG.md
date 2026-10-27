@@ -10,6 +10,41 @@ new team files or breaks old ones raises the first number.
 `schema_version` in team.yaml and team-state.yaml is a different number:
 it is the state file format, and it stays 2.
 
+## 4.5.0 - 2026-10-27
+
+### Added
+
+- Team monitor, off by default (`monitor: team` in team.yaml).
+  `assets/team-monitor.py run` is one plain script per team in its own
+  Herdr tab. It replaces per-Assignment watchers and `inbox.py wait-ack`,
+  writes every event the Lead must act on to `<team_dir>/wake-queue/`, and
+  rings the Lead with a fixed `WAKE:` line when the Lead has been idle for
+  30s. It uses only Herdr commands, so the Lead may be Claude Code, Codex
+  CLI, or cursor-agent, with no hooks and no host background tasks.
+- `drain` / `ack`: the Lead reads a snapshot, reconciles the User first,
+  handles wakes, and acknowledges only a contiguous handled prefix.
+  Wake files are the truth; restart and crashes do not lose or duplicate
+  wakes.
+- `dispatch-prompt`: waits only for the first lifecycle change and records
+  landed, landed_blocked, rejected_blocked, stalled, or uncertain;
+  uncertain is never retried automatically.
+- Safety: identity check before every monitor-issued prompt (mismatch →
+  `identity_fault` and quarantine); a Lead-owned hold marker keeps the
+  lease in place through a cancel or redirect; keyed, idempotent inbox
+  nudges (`inbox.py send --key`); a typed nudge interrupted mid-send
+  becomes `nudge_uncertain` instead of being resent; `hold`/`unhold`,
+  monitor prompts, and `dispatch-prompt` share one lock and recheck the
+  Assignment; `dispatch-prompt` reserves a `sending` record before it
+  sends; concurrent `start`s create one monitor, bound by a launch token.
+- `gate_lib.identity_mismatch()`, shared by dispatch-precheck.py and the
+  monitor. Offline tests in `evals/monitor_cases.py`.
+
+### Changed
+
+- `<team_dir>/monitor/**` and `<team_dir>/wake-queue/**` are core
+  protected paths. Templates state `monitor: watcher`; teams without the
+  field behave exactly as in 4.4.0.
+
 ## 4.4.0 - 2026-10-24
 
 ### Added

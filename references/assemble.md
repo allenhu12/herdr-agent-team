@@ -302,6 +302,13 @@ python3 <skill-dir>/assets/render-role-tree.py "<team_dir>/team.yaml" > "<team_d
 Print the tree in the roster report. Never draw or edit the tree by
 hand; step 1 already guarantees the renderer can run.
 
+For `monitor: team`, after the Lead identity is recorded and before the
+first dispatch, run `python3 <skill-dir>/assets/team-monitor.py start
+--team-dir <team_dir>`. It refuses to start a second monitor and binds
+the pane it started. Record its `{pane_id, tab_id, pid, started_at}` in
+team-state.yaml `monitor` and its tab as a `resources` entry with
+`created_by_team: true`.
+
 ### 6b. Launcher handoff
 
 Only when this session is the Launcher, after every pane is verified:

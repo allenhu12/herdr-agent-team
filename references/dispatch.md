@@ -203,6 +203,14 @@ Assignments only under its own `team_dir`.
 
 ## 3. Send the prompt through the watcher — one call, not two
 
+In a `monitor: team` team, send the prompt with `python3
+skill/assets/team-monitor.py dispatch-prompt --team-dir <team_dir> --role
+<role> --assignment <id> --attempt <n> --text "<prompt>"` instead, and do
+not start a watcher (monitoring.md "Team monitor"). Exit 0 means it landed;
+1 means it was refused or stalled (`agent read`); 3 means delivery is
+uncertain (`agent read` before any retry). The rest of this step applies
+to `monitor: watcher`.
+
 Do not split this into a fire-and-forget `agent prompt` followed by a
 separate `agent wait`: a bare `agent wait` started right after can simply
 observe the Sub-Agent's *pre-existing* idle state and return immediately,
@@ -252,7 +260,9 @@ once it returns.
   completed acceptance with a stale running state.
 - Confirm the monitor registration (assignment id, attempt, assignee, task
   handle) landed in `team-state.yaml`'s `monitors` list when using a background
-  monitor. Foreground-only dispatch has no monitor entry.
+  monitor. Foreground-only dispatch has no monitor entry. A `monitor: team`
+  team registers no per-Assignment monitor; record an optional
+  `deadline_s` on the Assignment instead.
 - The Lead Agent continues other work; acceptance happens on wake-up.
 
 ## 5. Acceptance protocol (triggered by a monitoring wake-up)

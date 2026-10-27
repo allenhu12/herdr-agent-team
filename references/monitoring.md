@@ -18,6 +18,105 @@ signal is a `report.md` on disk in the Assignment's workspace dir, belonging
 to the current `attempt`. Every acceptance decision starts there, never from
 `agent get` alone. A `handoff` outcome signals rotation, not completion.
 
+## Team monitor (`monitor: team`)
+
+team.yaml's top-level `monitor` field picks how the Lead learns about
+work: `watcher` (the default, everything from "Background-wait mechanism"
+on) or `team`. A `team` team runs one `assets/team-monitor.py run` per
+team in its own Herdr tab instead of one watcher per Assignment. It needs
+no host background-task facility and no agent-specific hook, so a Claude
+Code, Codex CLI, or cursor-agent Lead works the same way.
+
+**What it is.** A plain script, not an agent; it costs no tokens. It is
+not a child of the Lead's process, so it keeps running while the Lead
+restarts. `team-monitor.py start` creates the tab and runs it; a lock
+keeps one monitor per team; `heartbeat.json` shows it is alive.
+
+**What it watches**, every loop (read-only on the team files, one `herdr
+agent list`): for each dispatched Assignment at its current attempt the
+same outcomes as the watcher — `report`, `handoff` (a new handoff.md hash
+or `HANDOFF READY` marker count compared with the latest dispatch
+baseline, so successive Rotates in one attempt each wake once),
+`stalled` / `prompt_uncertain` (from the dispatch record), `blocked` held
+20s, `unknown` held 60s, `gone`, `no_report`, `inbox_unacked`, `timeout`
+(`deadline_s`, default 2700) — plus `role_gone` for an idle role that
+vanished, `identity_fault`, `nudge_uncertain`, and `monitor_error`.
+It treats an idle role as having finished a turn only when the latest
+dispatch record for that attempt is `landed` and it saw the role working
+after that, or the landed record has settled for 30s (work seen before the
+prompt landed never counts);
+then it sends the one report nudge by the role's `steering` (an inbox
+nudge carries the key `<id>:<attempt>:nudge`). It rings every inbox role,
+with or without an Assignment, so `inbox.py wait-ack` is not used.
+
+**What it never does.** It never accepts work, answers a question,
+changes an Assignment, writes team.yaml, team-state.yaml or
+assignment.md, or kills anything. The only completion signal is still
+the current attempt's `report.md`; a wake only says "go check".
+
+**Identity before every prompt.** Before each nudge, inbox ring, or Lead
+doorbell it compares the target's live pane, kind, cwd, and process
+identity with the recorded ones. A mismatch queues one `identity_fault`
+and the target is quarantined (no more prompts). The quarantine lifts only
+when the recorded identity or its verification time changes — Resume
+re-verified the agent and updated team-state, including
+`launch_verification.verified_at` (a role) or `identity_verified_at` (the
+Lead), even for the same process — and the live agent matches the record.
+
+**The wake queue.** Each event is one `<team_dir>/wake-queue/NNNNNN.wake`
+file, published by rename; the files are the truth, and
+`monitor/seen.json` is only a cache rebuilt at startup. A typed nudge
+interrupted mid-send is never resent: its recorded intent stays the
+authority and the Lead gets `nudge_uncertain`.
+
+**Locks.** `team-monitor.py hold`, `unhold`, `dispatch-prompt`, and every
+monitor prompt about an Assignment share `monitor/.prompt.lock` and
+recheck the Assignment (still dispatched, same attempt and assignee, no
+hold) under it. `start` serializes on `monitor/.start.lock` and binds the
+new monitor's pane in `monitor/binding.json` by a launch token; `stop`
+interrupts only that bound pane.
+
+**The Lead doorbell.** When unacknowledged wakes exist and the Lead has
+been idle for 30s (`HAT_LEAD_IDLE_HOLD_S`), the monitor types one fixed
+line into the Lead's pane: `WAKE: run python3 <skill>/assets/team-monitor.py
+drain --team-dir <team_dir>`. It does not ring a working or blocked Lead,
+and it only re-rings after 120s or when a newer wake arrives (backing off
+after three rings). With no Lead pane it only queues.
+
+**Handling a wake (Lead).** On the doorbell or any User message:
+
+1. `team-monitor.py drain` — a read-only snapshot of every unacknowledged
+   wake, plus `WAKE_ACK_REQUIRED=<seq>`. If it says the monitor is not
+   healthy, run `team-monitor.py start`.
+2. Reconcile the User first: apply the arriving User message and
+   `pending_user` through dispatch.md 5b and 5c before acting on any wake.
+3. Handle wakes in sequence with the outcome table and exception routing
+   below. A wake whose Assignment is no longer dispatched, or whose attempt
+   differs, is stale: skip it. A report that an open question blocks is
+   recorded as `deferred` (5c). Every branch must be safe to repeat.
+4. `team-monitor.py ack --handled <seqs>` (or `--through <seq>`): it
+   acknowledges only the contiguous prefix of wakes that are handled,
+   deferred, or stale. A wake whose handling was interrupted stays
+   unacknowledged and is shown again.
+
+**Dispatch prompts.** In team mode the Lead sends dispatch, rework,
+Resume, and Rotate prompts with `team-monitor.py dispatch-prompt`. It
+waits only for the first lifecycle change
+(`--until working --until blocked`, 15s). It reserves the dispatch record as `sending` first, then
+records `landed`, `landed_blocked`, `rejected_blocked` (nothing sent),
+`stalled`, or `uncertain` with the handoff baseline; a `sending` record
+left for 60s becomes `prompt_uncertain`. After `sending` or `uncertain`,
+`agent read` first; pass `--resend-after-check` only if the prompt did not
+land. It refuses an Assignment that is not dispatched or is on hold.
+
+**Cancel / redirect in team mode.** Run `team-monitor.py hold
+--assignment <id> --attempt <n> --reason <text>` first; when it returns,
+no monitor prompt for that Assignment can start and none is in flight.
+Then interrupt and prove the stop exactly as in the handshake below. Only
+then write the new state (cancelled, or the next attempt), revoke the
+lease, `inbox.py retire`, and `team-monitor.py unhold`. Until then the Assignment's state, attempt, and lease stay as
+they were, so the precheck still refuses an overlapping dispatch.
+
 ## Background-wait mechanism
 
 Always run through the host's own background-task facility (in Claude Code:
@@ -69,6 +168,10 @@ on an outcome the Lead must actually act on:
 | `timeout` | the hard deadline passed with no other outcome | extend, nudge, or escalate, same as before |
 | `inbox_unacked` | inbox role only: the nudge was rung `HAT_INBOX_RING_MAX` times and never moved to `handled/` | `agent read`, then the stuck branch |
 | `superseded` | inbox role only: the nudge was refused or retired because this attempt is no longer current | nothing to accept; the Lead already moved on |
+| `role_gone` | team monitor: an idle role vanished | Resume's gone branch for that role |
+| `identity_fault` | team monitor: a prompt target's identity no longer matches | Resume's quarantine branch; no prompt until re-verified |
+| `prompt_uncertain` / `nudge_uncertain` | team monitor: delivery of a dispatch prompt or typed nudge is unknown | `agent read`; resend only if it did not land |
+| `monitor_error` | team monitor: it could not read the team files | fix the file; the monitor keeps running |
 
 The script swallows `working`, a *first* idle/done without a report (it
 sends the one nudge itself and keeps waiting), and short `blocked`/`unknown`

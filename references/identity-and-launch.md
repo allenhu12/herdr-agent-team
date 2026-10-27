@@ -50,7 +50,9 @@ in roster, Status, Resume, and final reports, and in opening instructions.
 Keep `up_agent: lead` and `position.from: lead` as schema aliases. Resolve
 them through `team-state.yaml.lead`, not a guessed literal agent called
 `lead`. Give Sub-Agents the absolute state-file path; they re-read it to
-locate the Lead after a move. Identity is not messaging permission: use
+locate the Lead after a move. The team monitor (monitoring.md "Team monitor") prompts the Lead only after
+the same pane, kind, cwd, and process check against `team-state.yaml.lead`.
+Identity is not messaging permission: use
 report/log handoff and the existing monitor; do not inject prompts into a
 working Lead.
 

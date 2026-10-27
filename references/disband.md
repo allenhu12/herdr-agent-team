@@ -31,7 +31,11 @@ list. Do this for **all** monitors, not just ones tied to Assignments being
 cancelled — a monitor left running past this point can still wake up after
 its pane is closed and try to run acceptance against an archived, no-longer-
 live Assignment. This mirrors the cancel handshake in `monitoring.md`: stop
-the watcher before touching what it's watching.
+the watcher before touching what it's watching. For `monitor: team`, also
+run `team-monitor.py stop` and confirm it stopped (it interrupts only the
+pane bound in `monitor/binding.json`); its tab is a close
+target in step 6 only when its resource record says `created_by_team`.
+Leave `wake-queue/` in place as part of the record.
 
 ## 4. Re-validate before each close
 

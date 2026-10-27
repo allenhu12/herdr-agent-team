@@ -26,7 +26,12 @@ opening instruction, and `skills` is only mentioned by name.
 
 **Not started.**
 
-## Team-level watcher and durable wake queue
+## Done: team-level watcher and durable wake queue (4.5.0, `monitor: team`)
+
+Built as `assets/team-monitor.py`; see monitoring.md "Team monitor".
+The original note follows.
+
+### Original note
 
 **Why:** today each Assignment has its own background watcher, and a Lead
 restart loses every watcher's pending result until Resume re-arms them.
@@ -49,7 +54,7 @@ the host's background-task notification.
 that someone had to notice by hand, when five or more Assignments usually
 run at once, or when inbox messages need one scheduler across Assignments.
 
-**Not started.**
+Runtime cases RC-C1–C7 are still open.
 
 ## Done: archive team-state.yaml history
 

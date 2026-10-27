@@ -78,6 +78,15 @@ the replaced `monitors` list (step 4). List pending messages in the report.
 
 ## 3. Continuation instruction and watcher, together
 
+**Team monitor.** In a `monitor: team` team, run `team-monitor.py
+status` first and `start` when it is not healthy; then `drain` and handle
+the queued wakes (monitoring.md "Team monitor") before any continuation.
+Continuations below go through `team-monitor.py dispatch-prompt`, never a
+watcher, and no `monitors` entries are re-armed; leave a quarantined role
+unprompted until it passes step 2. Record the new verification time
+(`launch_verification.verified_at`, or `lead.identity_verified_at`) even
+when the same process re-verifies; that is what lifts the quarantine.
+
 **First, roles with no dispatched Assignment.** A role counts as having
 dispatched work only when it holds an Assignment in running or blocked,
 or a pending record with `dispatched_at` set or an active lease. A role

@@ -2,7 +2,7 @@
 name: herdr-agent-team
 description: "Coordinate an agent team via Herdr when explicitly asked to create a named team, assemble, dispatch, check status, resume, adjust (add/remove/replace a role's model or effort), disband, show the skill version, or 'Use Herdr to complete this task'. Do not activate for generic coding, explanations, or requests to review/edit this skill or a quoted prompt. Requires HERDR_ENV=1 and the Herdr CLI."
 metadata:
-  version: "4.4.0"
+  version: "4.5.0"
 ---
 
 # herdr-agent-team
@@ -97,6 +97,12 @@ Exit 0 means go on; exit 1 or 3 means stop and follow the printed reasons.
 Never work around a refusal by hand. A role with `steering: inbox` gets
 mid-task messages through [assets/inbox.py](assets/inbox.py) (monitoring.md
 "Steering"); other roles keep typed prompts.
+A team with `monitor: team` runs [assets/team-monitor.py](assets/team-monitor.py)
+in its own Herdr tab instead of per-Assignment watchers. On every wake-up
+(its `WAKE:` doorbell or any User message) run `team-monitor.py drain`
+first, reconcile the User's message and open questions, then handle the
+wakes and ack them (monitoring.md "Team monitor"). Do not report an
+unchanged doorbell to the User.
 Background all monitoring through [assets/watch-assignment.sh](assets/watch-assignment.sh)
 (see monitoring.md) instead of a bare `agent wait`.
 The [user guide](user-guide.md) gives a worked example; the

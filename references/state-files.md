@@ -86,6 +86,8 @@ in writer checkouts. Artifacts are versioned, not overwritten during review.
 ├── state-archive.yaml     # Lead-owned, append-only settled history
 ├── role-tree.md           # Lead-owned, rendered from team.yaml, read-only
 ├── lead-handoff.md        # Lead-owned narrative snapshot; refreshed at settled boundaries
+├── monitor/              # team monitor only: lock, heartbeat, caches, dispatch records, hold markers
+├── wake-queue/           # team monitor only: NNNNNN.wake events, acked pointer, done/
 ├── inbox/<role>/          # Lead-owned messages for steering: inbox roles (monitoring.md "Steering")
 │   ├── NNNN.msg           # pending; the role moves it to handled/ to acknowledge
 │   ├── handled/
@@ -152,6 +154,9 @@ cannot expose them; never copy advice into them. For a spawned Lead they
 are the verified launch spec. `lead.suggested` keeps template advice and
 is never shown as the actual Lead. The Role Tree renders from team.yaml
 alone, so it is the same with or without team-state.yaml.
+
+The optional top-level `monitor` field is `watcher` (default) or `team`
+(monitoring.md "Team monitor"); change it through Adjust.
 
 Roles also accept optional `steering` (`prompt` or `inbox`; absent means
 `prompt`). It chooses how the Lead sends mid-task messages
@@ -277,6 +282,9 @@ Lead-Agent-owned only. Top level:
   `inbox.py wait-ack` monitor has `kind: inbox`, `assignee` (the role), and
   its handle; its outcomes are `inbox_acked`, `inbox_unacked`, `gone`, and
   `timeout`.
+- `monitor` (team monitor only): `{pane_id, tab_id, pid, started_at}` of the
+  running `team-monitor.py`, or null. An Assignment may carry `deadline_s`
+  (default 2700) for the monitor's `timeout`.
 - `integration`: checkout_dir, status, accepted_artifacts, final_artifact,
   checks. Status is pending/running/succeeded/failed/not_applicable, distinct
   from Assignment state. Read-only tasks can use not_applicable with a reason.

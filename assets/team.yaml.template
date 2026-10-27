@@ -16,6 +16,7 @@ code_repos: []           # knowledge-only team: []
 #     rules_file: null                   # absolute path to company git rules, or null
 protected_paths_extra: []  # User-added protected paths; core entries are fixed (writer-rules.md)
 permissions: inherit     # inherit = agents follow the User's CLI config; scoped = sandbox flags (identity-and-launch.md)
+monitor: watcher         # watcher (one per Assignment) | team (one team monitor + wake queue; monitoring.md "Team monitor")
 lead:
   name: "<task>-lead-<model-label>"
   mode: session          # session = this session is Lead; spawned = Lead pane launched by the team

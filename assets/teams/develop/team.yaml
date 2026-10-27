@@ -17,6 +17,7 @@ checkout_mode: shared
 code_repos: []          # filled at assemble: [{name, path, base_branch, rules_file}]
 protected_paths_extra: []
 permissions: inherit    # agents follow the User's own CLI sandbox/approval config
+monitor: watcher        # or team: one team monitor in its own tab + wake queue
 lead:
   name: null            # <task>-lead-<model-label>, set at assemble
   mode: null            # session | spawned, set at assemble

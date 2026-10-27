@@ -76,6 +76,8 @@ integration:
   accepted_artifacts: []
   final_artifact: null
   checks: []
+monitor: null
+# monitor: {pane_id, tab_id, pid, started_at} when team.yaml has monitor: team.
 archive: null
 # archive: {path: "<team_dir>/state-archive.yaml", last_archived_at, counts}
 # Written by assets/archive-state.py; settled history lives in that file.
