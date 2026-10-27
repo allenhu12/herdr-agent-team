@@ -37,26 +37,12 @@ def check_identity(team, role_name, info, refuse, unknown):
         return
     if info is None:
         return
-    pairs = (("pane_id", info.get("pane_id"), rec.get("pane_id")),
-             ("kind", info.get("agent"), rec.get("kind")))
-    for label, live, recorded in pairs:
-        if live is None or recorded is None:
-            unknown.append(f"{role_name}: {label} missing (live={live!r}, recorded={recorded!r})")
-        elif live != recorded:
-            refuse.append(f"{role_name}: {label} {live!r} differs from recorded {recorded!r}")
-    live_cwd, rec_cwd = info.get("cwd"), rec.get("cwd")
-    if not live_cwd or not rec_cwd:
-        unknown.append(f"{role_name}: cwd missing (live={live_cwd!r}, recorded={rec_cwd!r})")
-    elif g.realpath(live_cwd) != g.realpath(rec_cwd):
-        refuse.append(f"{role_name}: cwd {live_cwd} differs from recorded {rec_cwd}")
+    mismatch, missing = g.identity_mismatch(role_name, rec, info)
+    refuse.extend(m + ("; launch_verification is invalid, verify the header first"
+                       if "process changed" in m else "") for m in mismatch)
+    unknown.extend(missing)
+    rec_cwd = rec.get("cwd")
     session = (info.get("agent_session") or {}).get("value")
-    recorded_session = (rec.get("process_identity") or {}).get("agent_session_id")
-    if recorded_session is None or session is None:
-        unknown.append(f"{role_name}: process identity not comparable "
-                       f"(live={session!r}, recorded={recorded_session!r})")
-    elif session != recorded_session:
-        refuse.append(f"{role_name}: process changed ({session} != {recorded_session}); "
-                      "launch_verification is invalid, verify the header first")
     lv = rec.get("launch_verification") or {}
     lv_session = (lv.get("process_identity") or {}).get("agent_session_id")
     if not lv:

@@ -6,7 +6,8 @@ Usage: render-role-tree.py <team.yaml> > <team_dir>/role-tree.md
 team.yaml is the only input. team-state.yaml is never read, so the same
 team.yaml always renders the same tree. Exit 2 when team.yaml breaks the
 fixed pane chain, uses an effort level the role's kind does not accept, or
-names a steering value other than inbox or prompt.
+names a steering value other than inbox or prompt, or a monitor value
+other than watcher or team.
 """
 import sys
 from os.path import normpath
@@ -82,8 +83,15 @@ def steering_errors(team):
             if r.get("steering", "prompt") not in ("inbox", "prompt")]
 
 
+def monitor_errors(team):
+    """monitor is optional; absent means watcher (monitoring.md "Team monitor")."""
+    value = team.get("monitor", "watcher")
+    return [] if value in ("watcher", "team") else [f"monitor must be 'watcher' or 'team', not {value!r}"]
+
+
 def validate(team):
-    return chain_errors(team) + effort_errors(team) + context_root_errors(team) + steering_errors(team)
+    return (chain_errors(team) + effort_errors(team) + context_root_errors(team)
+            + steering_errors(team) + monitor_errors(team))
 
 
 def _v(value):

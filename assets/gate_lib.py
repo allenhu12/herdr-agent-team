@@ -407,6 +407,41 @@ def agent_state(info):
     return "gone" if info is None else (info.get("agent_status") or "unknown")
 
 
+def identity_mismatch(name, rec, info):
+    """Compare a live Herdr agent record with the recorded identity.
+
+    Returns (mismatches, missing): mismatches prove another process or place;
+    missing means the evidence cannot be compared. Fields: pane_id, kind
+    (Herdr's `agent`), cwd (real paths), and process identity (Herdr's
+    agent_session value vs process_identity.agent_session_id). See
+    identity-and-launch.md "Inventory and ownership".
+    """
+    mismatches, missing = [], []
+    rec = rec or {}
+    if info is None:
+        return [f"{name}: no live agent"], []
+    pairs = (("pane_id", info.get("pane_id"), rec.get("pane_id")),
+             ("kind", info.get("agent"), rec.get("kind")))
+    for label, live, recorded in pairs:
+        if live is None or recorded is None:
+            missing.append(f"{name}: {label} missing (live={live!r}, recorded={recorded!r})")
+        elif live != recorded:
+            mismatches.append(f"{name}: {label} {live!r} differs from recorded {recorded!r}")
+    live_cwd, rec_cwd = info.get("cwd"), rec.get("cwd")
+    if not live_cwd or not rec_cwd:
+        missing.append(f"{name}: cwd missing (live={live_cwd!r}, recorded={rec_cwd!r})")
+    elif realpath(live_cwd) != realpath(rec_cwd):
+        mismatches.append(f"{name}: cwd {live_cwd} differs from recorded {rec_cwd}")
+    session = (info.get("agent_session") or {}).get("value")
+    recorded_session = (rec.get("process_identity") or {}).get("agent_session_id")
+    if recorded_session is None or session is None:
+        missing.append(f"{name}: process identity not comparable "
+                       f"(live={session!r}, recorded={recorded_session!r})")
+    elif session != recorded_session:
+        mismatches.append(f"{name}: process changed ({session} != {recorded_session})")
+    return mismatches, missing
+
+
 def die_usage(parser, message):
     parser.print_usage(sys.stderr)
     print(message, file=sys.stderr)

@@ -172,6 +172,8 @@ def main():
     sys.path.insert(0, str(ROOT / "evals"))
     import gate_cases
     gate_cases.run(check)
+    import monitor_cases
+    monitor_cases.run(check)
 
     watcher = read("assets/watch-assignment.sh")
     check("watcher emits current-attempt handoff outcome",
@@ -244,7 +246,7 @@ def main():
           and not any("-developer-" in r["name"] for r in develop["roles"]))
     rules = read("references/writer-rules.md")
     core = ["<team_dir>/team.yaml", "<team_dir>/team-state.yaml", "<team_dir>/role-tree.md",
-            "<team_dir>/inbox/**",
+            "<team_dir>/inbox/**", "<team_dir>/monitor/**", "<team_dir>/wake-queue/**",
             "<team_dir>/assignments/*/assignment.md", "<project_root>/00-current/**",
             "<project_root>/**/progress*.md", "<project_root>/**/item-list.json"]
     check("writer-rules lists every core protected path",
@@ -270,6 +272,22 @@ def main():
                   for n in ("resume.md", "writer-rules.md", "assemble.md")))
 
     check("roles default to steering prompt", all(r.get("steering") == "prompt" for r in roles))
+    check("templates default to the per-Assignment watcher",
+          team.get("monitor") == "watcher" and develop.get("monitor") == "watcher" and state.get("monitor") is None)
+    bad_monitor = copy.deepcopy(team)
+    bad_monitor["monitor"] = "daemon"
+    check("renderer rejects an unknown monitor value",
+          any("monitor" in e for e in rrt.validate(bad_monitor)), rrt.validate(bad_monitor))
+    legacy_monitor = copy.deepcopy(team)
+    legacy_monitor.pop("monitor")
+    check("a team without monitor stays valid", not rrt.validate(legacy_monitor), rrt.validate(legacy_monitor))
+    monitoring_doc = read("references/monitoring.md")
+    check("monitoring defines the team monitor contract",
+          all(s in monitoring_doc for s in ("## Team monitor", "Reconcile the User first", "--handled",
+                                            "team-monitor.py hold", "identity_fault", "--until working --until blocked",
+                                            "--resend-after-check", "binding.json")))
+    check("SKILL.md tells the Lead to drain first in team mode",
+          "team-monitor.py drain" in skill and "assets/team-monitor.py" in skill)
     bad_steering = copy.deepcopy(team)
     bad_steering["roles"][0]["steering"] = "pager"
     check("renderer rejects an unknown steering value",

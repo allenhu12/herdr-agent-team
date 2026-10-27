@@ -4,7 +4,7 @@
 Usage:
   inbox.py send     --team-dir <abs> --role <r> --kind <k> [--assignment <id> --attempt <n>]
                     [--window <tester-id> --window-state open|closed]
-                    (--body <text> | --body-file <path>) [--no-ring] [--handshake]
+                    (--body <text> | --body-file <path>) [--no-ring] [--handshake] [--key <k>]
   inbox.py status   --team-dir <abs> [--role <r>]
   inbox.py ring     --team-dir <abs> --role <r>
   inbox.py wait-ack --team-dir <abs> --role <r> [--deadline-s <s>]
@@ -25,6 +25,10 @@ dispatched at the same attempt; a tester-window `open` message only while
 its tester Assignment is dispatched. send refuses an invalid message; ring
 retires one. Both re-read team-state.yaml at that moment, so a late send
 after a state transition cannot publish a stale instruction.
+
+send --key makes a send idempotent: when a record with that key exists in
+the inbox, handled/, or retired/, it is returned (duplicate: true) and no new
+message is written. The team monitor uses <assignment>:<attempt>:nudge.
 
 ring: idle/done role with unhandled messages -> ring at once if never rung,
 again after HAT_INBOX_GRACE_S (default 60); after HAT_INBOX_RING_MAX rings
@@ -93,6 +97,16 @@ class Inbox:
                     if p.name.endswith(".msg") and stem.isdigit():
                         seen.append(int(stem))
         return max(seen) + 1
+
+    def find_key(self, key):
+        """The record (pending, handled, or retired) that carries this send key."""
+        for d in (self.dir, self.handled, self.retired):
+            if not d.is_dir():
+                continue
+            for p in sorted(d.iterdir()):
+                if p.name.endswith(".msg") and not p.name.startswith(".") and parse(p).get("key") == key:
+                    return p
+        return None
 
     def doorbell(self):
         return (f"INBOX: read every *.msg file in '{self.dir}' in number order, act on each, "
@@ -213,12 +227,19 @@ def cmd_send(args, team):
     box.ensure()
     with open(box.dir / ".seq.lock", "a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        if args.key:
+            existing = box.find_key(args.key)
+            if existing is not None:
+                return g.emit(SCRIPT, g.PASS, [], role=args.role, msg=existing.name, duplicate=True,
+                              where=existing.parent.name if existing.parent != box.dir else "inbox",
+                              path=str(existing))
         seq = box.next_seq()
         name = f"{seq:04d}.msg"
         lead = (team.state.get("lead") or {}).get("name") or "lead"
         text = (f"schema={SCHEMA}\nseq={seq:04d}\nat={g.now()}\nfrom={lead}\nrole={args.role}\n"
                 f"assignment={meta['assignment']}\nattempt={meta['attempt']}\nkind={args.kind}\n"
-                f"window={meta['window']}\nstate={meta['state']}\n--\n{body.rstrip()}\n")
+                f"window={meta['window']}\nstate={meta['state']}\n"
+                + (f"key={args.key}\n" if args.key else "") + f"--\n{body.rstrip()}\n")
         tmp = box.dir / f".{name}.tmp"
         tmp.write_text(text, encoding="utf-8")
         os.replace(tmp, box.dir / name)
@@ -320,6 +341,7 @@ def main(argv):
             body.add_argument("--body-file")
             p.add_argument("--no-ring", action="store_true")
             p.add_argument("--handshake", action="store_true")
+            p.add_argument("--key")
         if name == "wait-ack":
             p.add_argument("--deadline-s", type=float, default=2700)
         if name == "retire":
