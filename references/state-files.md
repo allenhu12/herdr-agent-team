@@ -117,9 +117,10 @@ and in full when the Lead's context is below 40%. Include current
 Assignments, armed monitors, open questions to the User and deferred
 reports, decisions, learned User preferences, and the next step. At below 40%, finish the current acceptance or dispatch first.
 Wait for a settled boundary: no acceptance half done and no prompt sent
-without its watcher. Then refresh in full and tell the User: "Recommend a
-new session that runs Resume." Below 20%, do not wait; refresh and tell the
-User at once. Start from `assets/lead-handoff.md.template`. Resume reads this
+without its watcher. Then refresh in full and run "Lead context handoff"
+(rotate.md): a Claude Code Lead uses `/compact` through
+`assets/lead-compact.py`; any other Lead tells the User: "Recommend a new
+session that runs Resume." Below 20%, do not wait. Start from `assets/lead-handoff.md.template`. Resume reads this
 narrative first and then team-state.
 
 Append one `## checkpoint` log entry after every finished Sub-Agent

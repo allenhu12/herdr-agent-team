@@ -63,5 +63,27 @@ If task-relay is used, append one line to
 Report the rotation and retained Assignment to the User. Do not treat the
 handoff as a completed report.
 
-Lead rotation is not this workflow. The User opens a new session and runs
-Resume, which reads `lead-handoff.md` before team-state.yaml.
+Lead rotation is not this workflow. See "Lead context handoff".
+
+## Lead context handoff
+
+Use this at the trigger in state-files.md ("lead-handoff.md"). Do not ask the
+User first; tell the User in one line.
+
+**Claude Code Lead: use `/compact`. Do not use `/clear`.** `/compact` keeps a
+summary, the session id, the Herdr agent name, and running watchers. `/clear`
+loses the context and the agent name.
+
+1. Reach a settled boundary. Refresh `lead-handoff.md` in full.
+2. Start the helper detached, with the Lead's pane id:
+   `nohup python3 <skill-dir>/assets/lead-compact.py <pane-id> <lead-name> <team-dir> &`
+3. End the turn. A slash command cannot run inside a working turn.
+4. After the continue prompt arrives, read `lead-handoff.md`, newest block
+   first. Check `<team-dir>/lead-compact.log` and `herdr agent get <lead-name>`.
+   Re-arm any stopped watcher with no prompt. Do not run full Resume unless
+   the session was lost.
+
+If the helper does not act, ask the User to type `/compact`.
+
+**Any other Lead kind** (not tested with this helper): the User opens a new
+session and runs Resume, which reads `lead-handoff.md` before team-state.yaml.

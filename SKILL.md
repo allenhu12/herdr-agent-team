@@ -2,7 +2,7 @@
 name: herdr-agent-team
 description: "Coordinate an agent team via Herdr when explicitly asked to create a named team, assemble, dispatch, check status, resume, adjust (add/remove/replace a role's model or effort), disband, show the skill version, or 'Use Herdr to complete this task'. Do not activate for generic coding, explanations, or requests to review/edit this skill or a quoted prompt. Requires HERDR_ENV=1 and the Herdr CLI."
 metadata:
-  version: "4.5.1"
+  version: "4.6.0"
 ---
 
 # herdr-agent-team
@@ -69,8 +69,10 @@ Read these rules with the selected workflow:
   blocks, and end every reply with the open questions (dispatch.md, 5c).
 - Before each question to the User, refresh `lead-handoff.md`. Refresh it
   after each acceptance and before the next dispatch. When Lead context is
-  below 40%, wait for the next settled boundary, then refresh it in full and
-  recommend a new session that runs Resume. Below 20%, do that at once.
+  below 40%, wait for the next settled boundary, refresh it in full, and run
+  "Lead context handoff" (rotate.md): a Claude Code Lead uses `/compact`,
+  never `/clear`; any other Lead recommends a new session that runs Resume.
+  Below 20%, do that at once.
 
 Acceptance and integration follow [acceptance.md](references/acceptance.md).
 Read reports first; verify frozen artifacts and the integrated result.

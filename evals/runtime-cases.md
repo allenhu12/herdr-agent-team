@@ -128,7 +128,7 @@ benchmark or blind holdout. Report its limitations alongside its counts.
 | V4-06 | Project uses task-relay | progress.log has pointer; item log has rotation line; Lead alone moves a Gotcha to memory.md |
 | V4-07 | Watcher sees `HANDOFF READY` | Emits `handoff` once for current attempt; Lead runs Rotate |
 | V4-08 | Role passes the 40% warning while on its last sub-step | Writes report.md, no handoff; watcher emits `report`; Lead runs acceptance, not Rotate |
-| V4-09 | Lead drops below 40% mid-acceptance | Finishes the acceptance first; then refreshes lead-handoff.md in full and recommends a new session; below 20% it does this at once |
+| V4-09 | Lead drops below 40% mid-acceptance | Finishes the acceptance first; then refreshes lead-handoff.md in full and runs Lead context handoff (Claude Code: /compact; other kinds: recommends a new session); below 20% it does this at once |
 
 ## Role context roots
 

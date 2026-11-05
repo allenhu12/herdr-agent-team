@@ -10,6 +10,16 @@ new team files or breaks old ones raises the first number.
 `schema_version` in team.yaml and team-state.yaml is a different number:
 it is the state file format, and it stays 2.
 
+## 4.6.0 - 2026-11-05
+
+### Changed
+
+- Lead context handoff: a Claude Code Lead now uses `/compact`, not a new
+  session or `/clear`. New helper `assets/lead-compact.py` sends `/compact`
+  and a continue prompt when the pane is idle. Tested on team aws with the
+  same steps: the session id, agent name, and running watcher survived. Other
+  Lead kinds still use a new session and Resume.
+
 ## 4.5.1 - 2026-10-27
 
 ### Fixed
