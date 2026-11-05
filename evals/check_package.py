@@ -267,6 +267,8 @@ def main():
                                                  "commit-gate.py verify", "--mode tester-post")))
     check("SKILL.md lists the gate scripts",
           all(s in skill for s in ("dispatch-precheck.py", "dirty-baseline.py", "commit-gate.py")))
+    check("Assemble, Adjust, Rotate, and Resume run the context read",
+          all("context-read.py send" in read(f"references/{n}.md") for n in ("assemble", "adjust", "rotate", "resume")))
     check("no reference still names exclusive writer checkouts",
           not any("exclusive writer checkouts" in (ROOT / "references" / n).read_text()
                   for n in ("resume.md", "writer-rules.md", "assemble.md")))

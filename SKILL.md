@@ -2,7 +2,7 @@
 name: herdr-agent-team
 description: "Coordinate an agent team via Herdr when explicitly asked to create a named team, assemble, dispatch, check status, resume, adjust (add/remove/replace a role's model or effort), disband, show the skill version, or 'Use Herdr to complete this task'. Do not activate for generic coding, explanations, or requests to review/edit this skill or a quoted prompt. Requires HERDR_ENV=1 and the Herdr CLI."
 metadata:
-  version: "4.6.0"
+  version: "4.7.0"
 ---
 
 # herdr-agent-team

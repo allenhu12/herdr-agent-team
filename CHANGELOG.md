@@ -10,6 +10,23 @@ new team files or breaks old ones raises the first number.
 `schema_version` in team.yaml and team-state.yaml is a different number:
 it is the state file format, and it stays 2.
 
+## 4.7.0 - 2026-11-05
+
+### Changed
+
+- `dispatch-precheck.py` refuses a role with `context_roots` unless its live
+  session did the context read. New `assets/context-read.py send` sends the read
+  and writes `context_read`. A team with such a role runs it once after this
+  update. A role with no visible session id gets cannot tell from both.
+- Adjust, Assemble, and Rotate save the verified identity before the read.
+
+### Fixed
+
+- Tester gate: it checks the repository's one current source writer from
+  team.yaml, so an Adjust rename no longer refuses the tester, and no writer or
+  several writers refuse. The newest commit is found across live state and
+  `state-archive.yaml`.
+
 ## 4.6.0 - 2026-11-05
 
 ### Changed

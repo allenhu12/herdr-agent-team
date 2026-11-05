@@ -4,6 +4,7 @@ Each case builds a throwaway team in a temp directory: a real git repository,
 team.yaml, team-state.yaml, and a fake herdr (fixtures/gates/fake-herdr.py).
 No Herdr server and no agent is used.
 """
+import importlib.util
 import json
 import os
 import subprocess
@@ -240,6 +241,147 @@ def precheck_cases(check):
                              extra=["--output", f"{f.repo}/build/**"])
         check("tester gate refuses a HEAD with no commit_log entry",
               rc == 1 and any("commit_log" in r for r in out["reasons"]), out)
+
+
+def context_cases(check):
+    root_a, root_b = "/tmp", "/usr"
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        role = f.team["roles"][1]
+        role["context_roots"] = [root_a]
+        rec = f.state["roles"]["t-test-luna"]
+        f.save()
+        args = dict(role="t-test-luna", kind="reader", scope=[])
+        rc, out = f.precheck(**args)
+        check("context gate: no read refuses", rc == 1 and "no context read" in str(out), out)
+        rec["context_read"] = {"session": "old-session", "roots": [root_a]}
+        f.save()
+        rc, out = f.precheck(**args)
+        check("context gate: another session refuses", rc == 1 and "another session" in str(out), out)
+        rec["context_read"] = {"session": "sess-test-1", "roots": [root_b]}
+        f.save()
+        rc, out = f.precheck(**args)
+        check("context gate: other roots refuse", rc == 1 and "other roots" in str(out), out)
+        rec["context_read"] = {"session": "sess-test-1"}
+        f.save()
+        rc, out = f.precheck(**args)
+        check("context gate: legacy record without roots refuses", rc == 1, out)
+        rec["context_read"] = {"session": "sess-test-1", "roots": [root_a]}
+        f.save()
+        rc, out = f.precheck(**args)
+        check("context gate: same session passes", rc == 0, out)
+        del f.agents["t-test-luna"]["agent"]["agent_session"]
+        rec["process_identity"] = {}
+        rec["launch_verification"]["process_identity"] = {}
+        f.save()
+        rc, out = f.precheck(**args)
+        check("context gate: no session id is cannot tell", rc == 3 and "no live session id" in str(out), out)
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        rc, out = f.precheck(role="t-test-luna", kind="reader", scope=[])
+        check("context gate: role with no roots is unchanged", rc == 0, out)
+    send = lambda f: f.run("context-read.py", "send", "--team-dir", str(f.team_dir), "--role", "t-test-luna",
+                           "--timeout", "0.3", "--poll", "0.05")
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        f.team["roles"][1]["context_roots"] = [root_a]
+        f.agents["t-test-luna"]["on_prompt"] = {"echo": True}
+        f.save()
+        rc, out = send(f)
+        check("context read: prompt echo alone records nothing",
+              rc == 3 and "context_read" not in f.reload()["roles"]["t-test-luna"], out)
+        f.agents["t-test-luna"]["on_prompt"] = {"echo": True, "context_reply": True}
+        f.save()
+        rc, out = send(f)
+        got = f.reload()["roles"]["t-test-luna"].get("context_read") or {}
+        check("context read: a real reply records session and roots",
+              rc == 0 and got.get("session") == "sess-test-1" and got.get("roots") == [root_a], out)
+        rc, out = f.precheck(role="t-test-luna", kind="reader", scope=[])
+        check("context read: then the gate passes", rc == 0, out)
+        f.agents["t-test-luna"]["agent"]["agent_status"] = "working"
+        f.save()
+        rc, out = send(f)
+        check("context read: a busy role is refused", rc == 1 and "idle role" in str(out), out)
+        f.agents["t-test-luna"]["agent"]["agent_status"] = "idle"
+        f.agents["t-test-luna"]["agent"]["agent_session"] = {"value": "sess-other"}
+        f.save()
+        rc, out = send(f)
+        check("context read: unsaved new identity is refused", rc == 1 and "save the verified" in str(out), out)
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        f.team["roles"][1]["context_roots"] = [root_a]
+        del f.agents["t-test-luna"]["agent"]["agent_session"]
+        f.save()
+        rc, out = send(f)
+        log = json.loads(f.herdr_state.read_text()).get("log")
+        check("context read: no session id sends nothing and records nothing",
+              rc == 3 and not log and "context_read" not in f.reload()["roles"]["t-test-luna"], (out, log))
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        f.team["roles"][1]["context_roots"] = [root_a]
+        later = yaml.safe_load(yaml.safe_dump(f.state))
+        later["assignments"].append({"id": "later", "assignee": "t-impl-sol"})
+        f.agents["t-test-luna"]["on_prompt"] = {
+            "context_reply": True,
+            "write": {"path": str(f.team_dir / "team-state.yaml"), "text": yaml.safe_dump(later)}}
+        f.save()
+        rc, out = send(f)
+        got = f.reload()
+        check("context read: a state write during the read is kept",
+              rc == 0 and [a["id"] for a in got["assignments"]] == ["later"]
+              and got["roles"]["t-test-luna"].get("context_read"), out)
+
+
+def context_reply_cases(check):
+    spec = importlib.util.spec_from_file_location("context_read", ASSETS / "context-read.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    prompt = mod.prompt_text(["/r"], "abc123")
+    check("context read: the prompt text is not a reply", not mod.answered(prompt, "abc123"))
+    check("context read: spaces around the hyphen count", mod.answered("x\n• CONTEXT-OK - abc123\ny", "abc123"))
+    check("context read: another code does not count", not mod.answered("• CONTEXT-OK-abc124", "abc123"))
+
+
+def rename_archive_cases(check):
+    def tester(f):
+        return f.precheck(role="t-test-luna", kind="tester", scope=[], assignment="t1")
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        head = git(f.repo, "rev-parse", "HEAD")
+        f.state["assignments"].append({"id": "a1", "attempt": 1, "assignee": "t-impl-old", "kind": "source",
+                                       "assignment_status": "succeeded", "dispatched_at": "2026-10-24T00:00:00Z"})
+        f.state["commit_log"] = [{"repository": "app", "sha": head, "assignment_id": "a1", "files": []}]
+        f.save()
+        rc, out = tester(f)
+        check("tester gate: a renamed writer does not refuse", rc == 0 and "gone" not in str(out), out)
+        f.agents["t-impl-sol"]["agent"]["agent_status"] = "working"
+        f.save()
+        rc, out = tester(f)
+        check("tester gate: the current writer working refuses",
+              rc == 1 and "t-impl-sol is working" in str(out), out)
+        f.agents["t-impl-sol"]["agent"]["agent_status"] = "idle"
+        f.team["roles"][0]["write_ceiling"] = []
+        f.save()
+        rc, out = tester(f)
+        check("tester gate: no current source writer refuses", rc == 1 and "one source writer" in str(out), out)
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        head = git(f.repo, "rev-parse", "HEAD")
+        line = {"repository": "app", "sha": head, "assignment_id": "a1", "files": []}
+        (f.team_dir / "state-archive.yaml").write_text(yaml.safe_dump_all(
+            [{"kind": "assignment", "record": {"id": "a1", "assignee": "t-impl-sol", "commit_log": [line]}}]))
+        f.save()
+        rc, out = tester(f)
+        check("tester gate: the latest commit is found in the archive",
+              rc == 0 and "no commit_log" not in str(out), out)
+        f.state["commit_log"] = [{"repository": "app", "sha": "0" * 40, "assignment_id": "a0", "files": [],
+                                  "at": "2026-01-01T00:00:00Z"}]
+        (f.team_dir / "state-archive.yaml").write_text(yaml.safe_dump_all(
+            [{"kind": "assignment", "record": {"id": "a1", "assignee": "t-impl-sol",
+                                               "commit_log": [dict(line, at="2026-02-01T00:00:00Z")]}}]))
+        f.save()
+        rc, out = tester(f)
+        check("tester gate: a newer archived commit beats an older live one", rc == 0, out)
 
 
 def baseline_cases(check):
@@ -714,6 +856,9 @@ def run(check):
     legacy_cases(check)
     inbox_cases(check)
     precheck_cases(check)
+    context_cases(check)
+    context_reply_cases(check)
+    rename_archive_cases(check)
     baseline_cases(check)
     commit_cases(check)
     robustness_cases(check)

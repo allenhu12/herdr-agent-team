@@ -237,7 +237,9 @@ Lead-Agent-owned only. Top level:
   process_identity, intended model/profile/effort, launch_verification
   (optionally with `model_footer_text`, the exact footer text that showed
   the model and effort at verification; dispatch-precheck.py compares it),
-  and `role_history` (prior names after an Adjust rename).
+  `role_history` (prior names after an Adjust rename), and for a role with
+  `context_roots`, `context_read: {at, session, roots, reply}`, written only by
+  `assets/context-read.py`.
   A role may also have `rotations: [{at, reason, handoff_path}]` for
   replacement sessions during a running Assignment.
   Verification fields are timestamped observations, not live state.

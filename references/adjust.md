@@ -40,9 +40,10 @@ the current Lead runs Adjust. A Launcher after handoff refuses it.
 2. Preflight (shared rule 2).
 3. Create its checkout (none in a shared-mode team: the pane's cwd is
    the knowledge root, or the code repository for a source writer), split the pane from its chain anchor, start it,
-   verify its header, and send the opening instruction (assemble.md
-   steps 4a and 5).
+   and verify its header (assemble.md step 4a).
 4. Write both files and re-render.
+5. Send the opening instruction, then run the context read for a role
+   with roots (assemble.md step 5).
 
 Example: "Add a DeepSeek implementer to the dev team" resolves to kind
 `codex`, model `deepseek-v4-flash`, profile `deepseek-v4-flash`, label
@@ -88,10 +89,11 @@ source writer's model instead.
    timestamp, move the next role's `position.from` and every queued
    Assignment's assignee to the new name, and keep the old name on
    finished Assignments. Rename the pane label to match.
-6. Send the opening instruction. The agent loses its in-session memory;
+6. Write both files and re-render, with no `context_read` on the new
+   record; never copy it from the old one.
+7. Send the opening instruction. The agent loses its in-session memory;
    Assignment files carry the context. If `context_roots` are configured,
-   complete Assemble's bounded read after READY before related dispatch.
-7. Write both files and re-render.
+   run `assets/context-read.py send` after READY (assemble.md step 5).
 
 To replace a role session while its Assignment remains running, use
 [Rotate](rotate.md), not this quiet-role replacement procedure.
@@ -101,10 +103,10 @@ To replace a role session while its Assignment remains running, use
 Refuse this change for a busy role (shared rule 5). Edit only that role's
 `context_roots` in team.yaml; an absent field means `[]`. Validate shape
 and directory existence through Assemble step 3, then write team.yaml and
-the unchanged team-state.yaml per shared rule 4, and re-render the Role
-Tree. Keep the idle pane and its identity. Send the
-bounded context reminder from Assemble step 5 before the next Assignment
-that depends on a new or changed root. Do not rewrite a settled
+the team-state.yaml per shared rule 4, with `context_read` removed, and
+re-render the Role Tree. Keep the idle pane and its identity. Run
+`assets/context-read.py send` before the next Assignment; the gate refuses
+until the record matches the new roots. Do not rewrite a settled
 Assignment's frozen Inputs.
 
 ## Turn a role's inbox on or off

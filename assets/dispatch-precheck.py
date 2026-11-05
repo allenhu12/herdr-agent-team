@@ -19,6 +19,9 @@ identity of the role's checkout. It does NOT need the new Assignment's own
 record: run it before writing that record (dispatch.md "Dispatch order").
 It writes nothing and sends no prompt.
 
+A role with context_roots must have a context_read record from its live session
+(context-read.py). A role whose session Herdr cannot show gets cannot tell.
+
 Exit: 0 pass, 1 refuse, 2 usage, 3 cannot tell (treat like refuse). The
 last stdout line is JSON with every reason found, not only the first.
 """
@@ -80,6 +83,47 @@ def check_model(role_name, rec, refuse, unknown):
                        "model or effort may have drifted, ask the User")
 
 
+def check_context(team, role, info, refuse, unknown):
+    """A role with context_roots must have read them in its live session."""
+    roots = {str(r) for r in role.get("context_roots") or []}
+    if not roots or info is None:
+        return
+    name = role["name"]
+    fix = "run assets/context-read.py send"
+    rec = (team.role_state(name) or {}).get("context_read") or {}
+    if not rec:
+        refuse.append(f"{name}: has context_roots and no context read; {fix}")
+        return
+    if {str(r) for r in rec.get("roots") or []} != roots:
+        refuse.append(f"{name}: context read covers other roots than team.yaml; {fix}")
+        return
+    live = (info.get("agent_session") or {}).get("value")
+    if live is None:
+        unknown.append(f"{name}: no live session id, so the context read cannot be tied to this session; "
+                       f"{fix} again and ask the User")
+    elif rec.get("session") != live:
+        refuse.append(f"{name}: context read belongs to another session; {fix}")
+
+
+def latest_commit(team, name):
+    """The newest accepted commit of a repository, live or archived, or None."""
+    lines = []
+    path = team.dir / "state-archive.yaml"
+    if path.exists():
+        import yaml
+        for doc in yaml.load_all(path.read_text(encoding="utf-8"), Loader=g.StringLoader):
+            if not doc:
+                continue
+            if doc.get("kind") == "commit_log":
+                lines.append(doc.get("record") or {})
+            elif doc.get("kind") == "assignment":
+                lines.extend((doc.get("record") or {}).get("commit_log") or [])
+    lines.extend(team.state.get("commit_log") or [])
+    found = [line for line in lines if line.get("repository") == name]
+    # Newest by recorded time. The sort is stable, so on a tie or a missing time the live record wins.
+    return max(enumerate(found), key=lambda p: (str(p[1].get("at") or ""), p[0]))[1] if found else None
+
+
 def check_busy(team, args, role_name, refuse):
     for item in team.assignments():
         if item.get("assignee") != role_name or not g.is_dispatched(item):
@@ -136,7 +180,6 @@ def check_shared(team, args, role_name, refuse, unknown, warnings):
         return
     if args.kind != "tester":
         return
-    log = team.state.get("commit_log") or []
     names = list(args.repo)
     if not names:
         if len(team.code_repos()) == 1:
@@ -157,16 +200,18 @@ def check_shared(team, args, role_name, refuse, unknown, warnings):
             if item.get("kind") == "source" or (item.get("kind") is None and item.get("assignee") in legacy_writers):
                 refuse.append(f"source Assignment {item.get('id')} is still {item.get('assignment_status')}")
         head = g.git(repo["path"], "rev-parse", "HEAD")
-        entries = [c for c in log if c.get("repository") == name]
-        if not entries:
+        last = latest_commit(team, name)
+        if last is None:
             refuse.append(f"{name}: HEAD {head[:12]} has no commit_log entry; tester gate needs one")
             continue
-        last = entries[-1]
         if last.get("sha") != head:
             refuse.append(f"{name}: HEAD {head[:12]} is not the last accepted commit {str(last.get('sha'))[:12]}")
             continue
         source = team.assignment(last.get("assignment_id")) or archived_assignment(team, last.get("assignment_id"))
-        writers = [source.get("assignee")] if source and source.get("assignee") else repo_writers(team, repo, role_name)
+        # The current source writer, from team.yaml: a finished Assignment may hold an old name.
+        writers = [w for w in repo_writers(team, repo, role_name) if "-tester-" not in w]
+        if len(writers) != 1:
+            refuse.append(f"{name}: expected one source writer in team.yaml, found {writers}")
         for writer in writers:
             state = g.agent_state(g.agent_info(writer))
             if state not in ("idle", "done"):
@@ -267,6 +312,7 @@ def main(argv):
             check_model(args.role, team.role_state(args.role), refuse, unknown)
         check_busy(team, args, args.role, refuse)
         check_scope(team, args, role, refuse)
+        check_context(team, role, info, refuse, unknown)
         warnings = []
         check_shared(team, args, args.role, refuse, unknown, warnings)
         code = g.REFUSE if refuse else (g.CANNOT_TELL if unknown else g.PASS)

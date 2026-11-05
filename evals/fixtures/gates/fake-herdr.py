@@ -17,6 +17,8 @@ a new pane id each time.
 An "on_prompt" hook per agent can apply a change when a prompt arrives:
   {"move_inbox": "<abs inbox dir>"}  moves every *.msg into handled/
   {"write": {"path": "...", "text": "..."}}  writes a file
+  {"echo": true}  adds the prompt text to the screen
+  {"context_reply": true}  also answers a context read: "CONTEXT-OK-<code>"
 """
 import json
 import os
@@ -52,8 +54,12 @@ def agent_record(data, name, consume=True):
     return record
 
 
-def apply_hook(entry):
+def apply_hook(entry, text=""):
     hook = entry.get("on_prompt") or {}
+    if hook.get("echo"):
+        entry["screen"] = entry.get("screen", "") + "\n> " + text
+    if hook.get("context_reply"):
+        entry["screen"] = entry.get("screen", "") + "\n• CONTEXT-OK-" + text.rsplit(" ", 1)[-1]
     inbox = hook.get("move_inbox")
     if inbox and os.path.isdir(inbox):
         handled = os.path.join(inbox, "handled")
@@ -125,7 +131,7 @@ def main(argv):
             print(json.dumps({"error": {"code": code, "message": code}, "id": "cli:agent:prompt"}))
             return 1
         if entry is not None:
-            apply_hook(entry)
+            apply_hook(entry, argv[3] if len(argv) > 3 else "")
         save(path, data)
         if entry is not None and "--wait" in argv:
             state = "blocked" if result == "blocked" else "working"

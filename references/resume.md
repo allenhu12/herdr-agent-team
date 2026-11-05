@@ -52,7 +52,8 @@ Two failure shapes, handled differently:
 - **Gone** (pane closed, agent exited): rebuild the role from scratch using
   Assemble's pane-split/agent-start/opening-instruction sequence
   (`assemble.md` steps 3–5, including preflight and header verification).
-  If it has `context_roots`, perform Assemble's bounded read after READY.
+  If it has `context_roots`, save its verified identity and run
+  `assets/context-read.py send` after READY.
   Verify and reuse its recorded checkout; do not discard interrupted edits
   or recreate it from the original base. If missing, inspect frozen artifacts
   and logs and report any unrecoverable uncommitted work before continuing.

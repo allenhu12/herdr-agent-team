@@ -29,7 +29,8 @@ checkout, log, report, and handoff.
 Use Assemble steps 3–5, including preflight, pane ownership checks, launch,
 and exact header verification. Keep the same role name, kind, model, effort,
 profile, and checkout. Do not create a new Assignment or change its lease.
-For configured `context_roots`, complete the bounded read after READY.
+Save the new `process_identity` in team-state.yaml as soon as the header is
+verified. For configured `context_roots`, run `assets/context-read.py send` after READY.
 Compare current root versions with the running Assignment's frozen Inputs.
 If a root changed or disappeared, follow Dispatch's late-signal procedure
 before continuing; preserve the Assignment workspace and evidence.

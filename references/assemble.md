@@ -271,17 +271,19 @@ send the following (this establishes identity, not an implementation task):
 Observe the opening prompt's result; do not label it idle on a timeout or
 block. Resolve through monitoring.md before dispatching work.
 
-After READY, send an idle configured role a separate bounded context-read
-prompt. Have it read each root's README.md first when present (or a small
-top-level index), then identify the sections relevant to its role. Use
-`rg --files` and `rg -n` for navigation; read only relevant sections of
-large files. If an index exceeds 8 KB, read its headings and relevant
-section first. Do not load a whole repository tree, secret files, credentials,
-or login transcripts. Wait for this read to finish before a
-context-dependent Assignment. When reusing an idle role whose configured
-roots are new or changed, send this reminder and repeat the bounded read
-when uncertain. Never interrupt a working role; its active Assignment
-remains authoritative, and new context belongs in the next Assignment.
+After READY, save the role's team.yaml entry and its verified live identity
+in team-state.yaml, with no `context_read`. Then, for a role with
+`context_roots`, run `assets/context-read.py send --team-dir <team_dir> --role
+<role>`. It sends the bounded read prompt, waits for the answer, and writes
+`context_read`. `dispatch-precheck.py` refuses every dispatch to this role until
+that record belongs to its live session. A role that fails the read stays idle
+and undispatched. Repeat the read when the roots change. Never interrupt a
+working role; its active Assignment remains authoritative, and new context
+belongs in the next Assignment.
+
+A role with no visible session id cannot get this proof: `send` sends nothing,
+and both `send` and the gate say cannot tell. Stop and ask the User. A pi `/new`
+that keeps the same identity is not detected; start a new process instead.
 
 ## 6. Record, render, and report
 

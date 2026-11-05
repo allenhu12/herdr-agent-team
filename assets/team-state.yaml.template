@@ -41,6 +41,7 @@ roles: {}
 #     expected_agent_state: idle
 #     role_history: []   # prior names after an Adjust rename: [{name, until, reason}]
 #     rotations: []      # [{at, reason, handoff_path}] for live Assignment rotations
+#     context_read: {}   # with context_roots only; written by context-read.py: {at, session, roots, reply}
 assignments: []
 # Each: id, attempt, assignee, kind (source|tester|reader|knowledge),
 # assignment_status, created_at, finished_at, base_commit or input_snapshot,

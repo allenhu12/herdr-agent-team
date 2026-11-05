@@ -182,6 +182,10 @@ absolute checkout/control paths, exclusions, verification commands with cwd,
 and final artifact format. Let the Sub-Agent inspect code and choose exact
 edits; do not read every file to supply line numbers.
 
+A role with `context_roots` must have read them in its live session
+(`assets/context-read.py`, assemble.md step 5); the precheck refuses otherwise,
+for every Assignment, also one that does not use the roots.
+
 For a task that uses a role's declared `context_roots`, first verify each
 needed directory still exists. Freeze each used root in Inputs as
 `context: <absolute root>@<git HEAD SHA or snapshot hash>`; if a checkout
