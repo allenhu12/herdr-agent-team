@@ -10,6 +10,20 @@ new team files or breaks old ones raises the first number.
 `schema_version` in team.yaml and team-state.yaml is a different number:
 it is the state file format, and it stays 2.
 
+## 4.8.0 - 2026-11-06
+
+### Changed
+
+- `commit-gate.py verify` no longer limits the number of new commits. It
+  checks that HEAD descends from `input_sha` on the base branch, and that the
+  paths and blobs changed between `input_sha` and HEAD equal the approved
+  list. A merge commit, which also brings the merged branch's history, now
+  passes when its result is what the User approved (User decision). Only
+  the final tree is checked: a change made and undone in between is not
+  seen. `commit_log` holds one entry per repository for the accepted HEAD.
+  acceptance.md says how to finish a staged merge. A Git error in the
+  ancestry check is now cannot tell, not refuse.
+
 ## 4.7.0 - 2026-11-05
 
 ### Changed

@@ -500,6 +500,25 @@ def commit_cases(check):
 
         git(f.repo, "commit", "-q", "-m", "work", "--", "src/a.txt", "src/b.txt")
         state_before = (f.team_dir / "team-state.yaml").read_text()
+        # Two commits with the approved result also pass: the gate checks the result, not the count.
+        work = git(f.repo, "rev-parse", "HEAD")
+        git(f.repo, "reset", "-q", "--soft", "HEAD~1")
+        git(f.repo, "commit", "-q", "-m", "part 1", "--", "src/a.txt")
+        git(f.repo, "commit", "-q", "-m", "part 2", "--", "src/b.txt")
+        rc, out = gate(f, "verify")
+        check("commit verify passes two commits with the approved result", rc == 0, out)
+        # A two-parent merge whose final tree is the approved result passes.
+        git(f.repo, "reset", "-q", "--hard", work)
+        git(f.repo, "switch", "-q", "-c", "side", f.base)
+        (f.repo / "src/a.txt").write_text("agent\n")
+        git(f.repo, "commit", "-q", "-m", "side", "--", "src/a.txt")
+        git(f.repo, "switch", "-q", "main")
+        git(f.repo, "merge", "-q", "--no-ff", "-m", "merge side", "side")
+        parents = git(f.repo, "rev-list", "--parents", "-n", "1", "HEAD").split()
+        rc, out = gate(f, "verify")
+        check("commit verify passes a two-parent merge with the approved result",
+              rc == 0 and len(parents) == 3, out)
+        git(f.repo, "reset", "-q", "--hard", work)
         rc, out = gate(f, "verify")
         check("commit verify passes one exact commit", rc == 0, out)
         check("verify without --record writes nothing",
@@ -535,16 +554,56 @@ def commit_cases(check):
                        "--mode", "tester-post")
         check("tester-post refuses a tracked source change", rc == 1, out)
 
-    for label, mutate in (
-            ("an unconfirmed file", lambda f: (Path(f.repo / "src/extra.txt").write_text("e\n"),
+    def no_baseline(f):
+        return not list(f.team_dir.rglob("post-commit-baseline.jsonl"))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # A recorded merge logs one entry for the repository: the final HEAD.
+        f = prepared(tmp)
+        git(f.repo, "commit", "-q", "-m", "work", "--", "src/a.txt", "src/b.txt")
+        git(f.repo, "switch", "-q", "-c", "side", f.base)
+        (f.repo / "src/a.txt").write_text("agent\n")
+        git(f.repo, "commit", "-q", "-m", "side", "--", "src/a.txt")
+        git(f.repo, "switch", "-q", "main")
+        git(f.repo, "merge", "-q", "--no-ff", "-m", "merge side", "side")
+        head = git(f.repo, "rev-parse", "HEAD")
+        log_before = len(f.state.get("commit_log") or [])
+        rc, out = gate(f, "verify", "--record")
+        state = f.reload()
+        item = state["assignments"][0]
+        new = state["commit_log"][log_before:]
+        check("verify --record on a merge logs one entry with the final HEAD and the baseline",
+              rc == 0 and len(new) == 1 and new[0]["sha"] == head
+              and item["repositories"][0]["result_sha"] == head
+              and Path(item["post_commit_baseline"]).exists(), out)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # Final-tree rule: a change made and undone before HEAD is not seen (documented limit).
+        f = prepared(tmp)
+        (f.repo / "src/a.txt").write_text("not approved\n")
+        git(f.repo, "commit", "-q", "-m", "detour", "--", "src/a.txt", "src/b.txt")
+        (f.repo / "src/a.txt").write_text("agent\n")
+        git(f.repo, "commit", "-q", "-m", "undo", "--", "src/a.txt")
+        rc, out = gate(f, "verify")
+        check("commit verify passes a change made and undone when the final tree is approved", rc == 0, out)
+
+    for label, want, mutate in (
+            ("an unconfirmed file", "unconfirmed src/extra.txt", lambda f: (Path(f.repo / "src/extra.txt").write_text("e\n"),
                                                git(f.repo, "add", "src/extra.txt"),
                                                git(f.repo, "commit", "-q", "-m", "w"))),
-            ("a missing confirmed file", lambda f: git(f.repo, "commit", "-q", "-m", "w", "--", "src/a.txt")),
-            ("two commits", lambda f: (git(f.repo, "commit", "-q", "-m", "w1", "--", "src/a.txt"),
-                                       git(f.repo, "commit", "-q", "-m", "w2", "--", "src/b.txt"))),
-            ("another branch", lambda f: (git(f.repo, "switch", "-q", "-c", "other"),
+            ("a missing confirmed file", "confirmed src/b.txt is not in the commit",
+             lambda f: git(f.repo, "commit", "-q", "-m", "w", "--", "src/a.txt")),
+            ("a merge that brings an unconfirmed file", "unconfirmed src/c.txt",
+             lambda f: (git(f.repo, "commit", "-q", "-m", "work", "--", "src/a.txt", "src/b.txt"),
+                        git(f.repo, "switch", "-q", "-c", "side", f.base),
+                        Path(f.repo / "src/c.txt").write_text("c\n"), git(f.repo, "add", "src/c.txt"),
+                        git(f.repo, "commit", "-q", "-m", "side"), git(f.repo, "switch", "-q", "main"),
+                        git(f.repo, "merge", "-q", "--no-ff", "-m", "merge", "side"))),
+            ("a HEAD that does not descend from input_sha", "does not descend from input_sha",
+             lambda f: git(f.repo, "commit", "-q", "--amend", "-m", "rewritten", "--", "src/a.txt", "src/b.txt")),
+            ("another branch", None, lambda f: (git(f.repo, "switch", "-q", "-c", "other"),
                                           git(f.repo, "commit", "-q", "-m", "w", "--", "src/a.txt", "src/b.txt"))),
-            ("different committed content", lambda f: (Path(f.repo / "src/a.txt").write_text("swapped\n"),
+            ("different committed content", "differs from the approved content", lambda f: (Path(f.repo / "src/a.txt").write_text("swapped\n"),
                                                        git(f.repo, "commit", "-q", "-m", "w", "--",
                                                            "src/a.txt", "src/b.txt")))):
         with tempfile.TemporaryDirectory() as tmp:
@@ -553,7 +612,34 @@ def commit_cases(check):
             before = (f.team_dir / "team-state.yaml").read_text()
             rc, out = gate(f, "verify", "--record")
             check(f"commit verify refuses {label} and writes nothing",
-                  rc == 1 and (f.team_dir / "team-state.yaml").read_text() == before, out)
+                  rc == 1 and (f.team_dir / "team-state.yaml").read_text() == before and no_baseline(f)
+                  and (want is None or any(want in r for r in out["reasons"])), out)
+
+
+def commit_error_cases(check):
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Fixture(tmp)
+        (f.repo / "src/a.txt").write_text("agent\n")
+        f.add_assignment("a1", status="running")
+        rc_cap, out_cap = f.db("capture", "--team-dir", str(f.team_dir), "--assignment", "a1", "--attempt", "1",
+                               "--record")
+        rc_acc, out_acc = f.db("compare", "--team-dir", str(f.team_dir), "--assignment", "a1", "--attempt", "1",
+                               "--mode", "accept", "--record")
+        check("error case setup: capture and accept pass", rc_cap == 0 and rc_acc == 0, (out_cap, out_acc))
+        f.reload()
+        item = f.state["assignments"][0]
+        item["commit"].update({"status": "approved", "approved_by": "user", "confirmed_files": ["src/a.txt"]})
+        git(f.repo, "commit", "-q", "-m", "work", "--", "src/a.txt")
+        for rec in item.get("repositories") or []:
+            rec["input_sha"] = "0" * 40
+        item["base_commit"] = "0" * 40
+        f.save()
+        before = (f.team_dir / "team-state.yaml").read_text()
+        rc, out = f.gate("verify", "--team-dir", str(f.team_dir), "--assignment", "a1", "--record")
+        check("commit verify says cannot tell on a Git error and writes nothing",
+              rc == 3 and (f.team_dir / "team-state.yaml").read_text() == before
+              and any("merge-base failed" in r for r in out["reasons"])
+              and not list(f.team_dir.rglob("post-commit-baseline.jsonl")), out)
 
 
 def robustness_cases(check):
@@ -861,4 +947,5 @@ def run(check):
     rename_archive_cases(check)
     baseline_cases(check)
     commit_cases(check)
+    commit_error_cases(check)
     robustness_cases(check)

@@ -13,10 +13,14 @@ base branch; the accept snapshot digest equal to commit.accept_digest; every
 confirmed file still holding the content the User approved; and no staged
 entry outside the confirmed files.
 
-verify runs after the commit: exactly one new commit whose parent is
-input_sha, on the base branch, whose changed paths equal the confirmed
-files and whose blobs equal the accept snapshot. --record then writes
-repositories[].result_sha, appends commit_log, sets commit.status to
+verify runs after the commit: HEAD descends from input_sha on the base
+branch, the paths that differ between input_sha and HEAD equal the
+confirmed files, and their blobs equal the accept snapshot. The number of
+commits is not limited, so a merge commit, which also brings the merged
+branch's history, passes when its result is what the User approved. Only
+the final tree counts: a change made and undone in between is not seen.
+--record then writes repositories[].result_sha, appends one commit_log entry
+per repository for the accepted HEAD, sets commit.status to
 committed, and records post_commit_baseline for the tester gate. It never
 marks the Assignment succeeded; the Lead does that.
 
@@ -28,6 +32,7 @@ Exit: 0 pass, 1 refuse, 2 usage, 3 cannot tell. Nothing is written on 1 or 3.
 import argparse
 import hashlib
 import importlib.util
+import subprocess
 import json
 import os
 import sys
@@ -174,16 +179,18 @@ def verify(args):
         base = input_sha(item, name)
         branch_ok(repo, refuse)
         head = g.git(repo["path"], "rev-parse", "HEAD")
-        count = g.git(repo["path"], "rev-list", "--count", f"{base}..HEAD")
         if head == base:
             if files.get(name):
                 refuse.append(f"{name}: no new commit")
             continue
-        if count != "1":
-            refuse.append(f"{name}: {count} new commits; the gate allows exactly one")
-        parent = g.git(repo["path"], "rev-parse", "HEAD^", check=False)
-        if parent != base:
-            refuse.append(f"{name}: parent {parent[:12]} is not input_sha {base[:12]}")
+        ancestry = subprocess.run(["git", "-C", str(repo["path"]), "merge-base", "--is-ancestor", base, "HEAD"],
+                                  capture_output=True)
+        if ancestry.returncode == 1:
+            refuse.append(f"{name}: HEAD {head[:12]} does not descend from input_sha {base[:12]}")
+            continue
+        if ancestry.returncode != 0:
+            raise g.CannotTell(f"{name}: git merge-base failed: "
+                               f"{ancestry.stderr.decode('utf-8', 'replace').strip()}")
         changed = diff_paths(repo, base)
         want = files.get(name, set())
         for extra in sorted(changed - want):

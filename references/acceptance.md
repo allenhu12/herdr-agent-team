@@ -56,7 +56,8 @@ python3 skill/assets/dirty-baseline.py compare --team-dir <team_dir> \
 
 ### Commit gate (shared mode)
 
-Every source commit in a shared-mode code repository needs the User.
+In a shared-mode code repository, the User approves each Assignment's final
+committed tree before it is committed (one or more commits).
 
 1. **Ask.** Show the User one list per repository: the files, a short
    change summary, and a mark on each `dirty_at_dispatch` file ("holds
@@ -78,14 +79,13 @@ Every source commit in a shared-mode code repository needs the User.
    saw, when the snapshot itself changed, or when another path is staged.
    A refusal goes back to the User with the reasons. On a pass, prompt the
    implementor to commit exactly the confirmed files: `git commit --
-   <files>` on the base branch, one commit per repository. Nothing else.
+   <files>` on the base branch. To finish a staged merge (`MERGE_HEAD`
+   present), commit the whole index with `git commit -F <message>` and no
+   paths: Git refuses a partial commit during a merge. Nothing else.
 4. **Verify.** Run `python3 skill/assets/commit-gate.py verify --team-dir
-   <team_dir> --assignment <id> --record`. It checks that each new commit
-   is the only one, its parent is `input_sha`, it is on the base branch,
-   its changed paths equal the confirmed list, and its blobs equal the
-   approved content. A refusal writes nothing and goes to the User. On a
+   <team_dir> --assignment <id> --record`. It checks that HEAD descends from `input_sha` on the base branch, the paths that differ between `input_sha` and HEAD equal the confirmed list, and their blobs equal the approved content. Only the final result is approved: a change made in one commit and undone in a later one is not seen. The number of commits is not limited (User, 2026-11-06), so a merge commit passes when its result is what the User approved. A refusal writes nothing and goes to the User. On a
    pass it records `result_sha` per repository, appends one line per
-   commit to `team-state.yaml.commit_log` (Assignment, repository, SHA,
+   repository for the accepted HEAD to `team-state.yaml.commit_log` (Assignment, repository, SHA,
    files, `user` or `auto`), sets `commit.status: committed`, and records
    `post_commit_baseline` for the tester gate. Then mark the Assignment
    `succeeded`.
