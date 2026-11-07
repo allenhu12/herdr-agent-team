@@ -95,7 +95,6 @@ effort: high
 launch_args: ["-p", "deepseek-v4-flash", "-m", "deepseek-v4-flash", "-c", 'model_reasoning_effort="high"']
 access: writer
 checkout_dir: /absolute/parser-writer
-position: {direction: right, from: lead}
 write_ceiling: ["src/parser/**", "tests/parser/**"]
 up_agent: lead
 low_agent: []
@@ -243,17 +242,17 @@ lead  [template suggestion]
 `-- <task>-writer-opus
       claude · opus · medium · writer
 
-+----------+------------------------+
-|          | <task>-implementor-sol |
-|          +------------------------+
-|   lead   |   <task>-tester-luna   |
-|          +------------------------+
-|          |   <task>-writer-opus   |
-+----------+------------------------+
+tab: lead  (Lead pane)
+tab: <task>-implementor-sol
+tab: <task>-tester-luna
+tab: <task>-writer-opus
 ```
 
-The layout is fixed: the Lead on the left, Sub-Agents stacked top to
-bottom on the right. Effort must be valid for the kind. Codex has no
+Each Sub-Agent gets its own Herdr tab, named after the role
+(`layout: tabs`). A full-width tab keeps the agent's footer readable, so
+the gates can check the model and effort. Teams made before 4.9.0 have no
+`layout` and keep the old split chain; `assets/move-to-tab.py` moves a
+live role into its own tab without a restart. Effort must be valid for the kind. Codex has no
 `max`, so a Codex role set to `max` fails preflight.
 
 ### Example: a develop team at work

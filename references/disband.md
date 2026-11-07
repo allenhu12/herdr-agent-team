@@ -64,7 +64,8 @@ record; pending messages there are reported, not deleted.
 
 ## 6. Close
 
-End each Sub-Agent and close its pane, one role at a time. Close **only**
+End each Sub-Agent and close its pane, one role at a time. Under
+`layout: tabs`, closing a role's last pane also closes its tab. Close **only**
 panes this skill created — never touch a pane the team doesn't own, even if
 it looks related.
 

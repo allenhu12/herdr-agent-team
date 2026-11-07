@@ -4,8 +4,9 @@
 Usage: render-role-tree.py <team.yaml> > <team_dir>/role-tree.md
 
 team.yaml is the only input. team-state.yaml is never read, so the same
-team.yaml always renders the same tree. Exit 2 when team.yaml breaks the
-fixed pane chain, uses an effort level the role's kind does not accept, or
+team.yaml always renders the same tree. Exit 2 when team.yaml names a layout
+other than tabs or chain, breaks the fixed pane chain (layout chain), gives a
+role a position under layout tabs, uses an effort level the role's kind does not accept, or
 names a steering value other than inbox or prompt, or a monitor value
 other than watcher or team.
 """
@@ -22,13 +23,25 @@ EFFORT_BY_KIND = {
 }
 
 
+def layout_of(team):
+    """layout is optional; absent means chain, the layout of teams made before 4.9.0."""
+    return team.get("layout", "chain")
+
+
 def chain_errors(team):
-    """Fixed chain: role 1 right from lead, role N down from role N-1."""
+    """layout chain: role 1 right from lead, role N down from role N-1.
+    layout tabs: each role has its own tab, so no role has a position."""
     errors = []
     roles = team.get("roles") or []
     names = [r.get("name") for r in roles]
     if len(set(names)) != len(names):
         errors.append("role names are not unique")
+    layout = layout_of(team)
+    if layout not in ("tabs", "chain"):
+        return errors + [f"layout must be 'tabs' or 'chain', not {layout!r}"]
+    if layout == "tabs":
+        return errors + [f"{r.get('name')}: layout tabs gives each role its own tab; remove position"
+                         for r in roles if r.get("position") is not None]
     for i, role in enumerate(roles):
         pos = role.get("position") or {}
         want = ("right", "lead") if i == 0 else ("down", names[i - 1])
@@ -133,9 +146,14 @@ def render(team):
                    f"{_v(r.get('effort'))} · {_v(r.get('access'))}")
         if r.get("responsibility"):
             out.append(f"{cont}  {r['responsibility']}")
-    out += ["```", "", "## Pane layout", "", "```text"]
     lead_name = head.split("  [")[0]
     names = [_v(r.get("name")) for r in roles] or ["(no Sub-Agents)"]
+    if layout_of(team) == "tabs":
+        out += ["```", "", "## Tab layout", "", "```text", f"tab: {lead_name}  (Lead pane)"]
+        out += [f"tab: {n}" for n in names]
+        out += ["```", ""]
+        return "\n".join(out)
+    out += ["```", "", "## Pane layout", "", "```text"]
     lw = max(len(lead_name), 8) + 2
     rw = max(len(n) for n in names) + 2
     sep = "+" + "-" * lw + "+" + "-" * rw + "+"

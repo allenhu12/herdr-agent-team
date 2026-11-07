@@ -10,6 +10,28 @@ new team files or breaks old ones raises the first number.
 `schema_version` in team.yaml and team-state.yaml is a different number:
 it is the state file format, and it stays 2.
 
+## 4.9.0
+
+### Added
+- `layout: tabs` in team.yaml (new default): each Sub-Agent starts in its
+  own Herdr tab, named after the role. A full-width tab keeps the Codex
+  footer readable, so the dispatch precheck can check model and effort.
+- `assets/move-to-tab.py`: moves one live role from a split pane into its
+  own tab without a restart. It checks the live agent against its record
+  first (refuses a mismatch, a missing record, working or blocked; unknown
+  is cannot tell), turns zoom off, runs `pane move --new-tab --label
+  <role> --no-focus`, requires `changed: true`, checks the identity again,
+  and records `tab_id`. `--dry-run` changes nothing.
+- adjust.md "Move a live team to tabs".
+
+### Changed
+- `render-role-tree.py` validates `layout` (`tabs` or `chain`; absent =
+  `chain`). Chain rules apply only to `chain`; a `tabs` role must not have
+  a `position`. Tabs teams render a tab list.
+- assemble.md and adjust.md: create, replace and remove roles as tabs
+  under `layout: tabs`; the split chain stays for `layout: chain`.
+- The template and the develop seed use `layout: tabs` with no positions.
+
 ## 4.8.0 - 2026-11-06
 
 ### Changed

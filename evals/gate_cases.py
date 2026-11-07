@@ -642,6 +642,91 @@ def commit_error_cases(check):
               and not list(f.team_dir.rglob("post-commit-baseline.jsonl")), out)
 
 
+def move_tab_cases(check):
+    def setup(tmp, tabs=None, **herdr):
+        f = Fixture(tmp)
+        f.state["lead"] = {"pane_id": "w1:p1"}
+        tabs = tabs or {"w1:t1": {"label": "main", "panes": ["w1:p1", "w1:p2", "w1:p3"]}}
+        for name, pane in (("t-impl-sol", "w1:p2"), ("t-test-luna", "w1:p3")):
+            f.agents[name]["agent"]["tab_id"] = next(t for t, v in tabs.items() if pane in v["panes"])
+        f.save()
+        data = {"agents": f.agents, "log": [], "tabs": tabs}
+        data.update(herdr)
+        f.herdr_state.write_text(json.dumps(data))
+        return f
+
+    def move(f, *extra):
+        return f.run("move-to-tab.py", "--team-dir", str(f.team_dir), "--role", "t-impl-sol", *extra)
+
+    def herdr_log(f):
+        return json.loads(f.herdr_state.read_text())["log"]
+
+    def state_text(f):
+        return (f.team_dir / "team-state.yaml").read_text()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        f = setup(tmp, zoomed={"w1:t1": True})
+        before = state_text(f)
+        rc, out = move(f, "--dry-run")
+        check("move-to-tab --dry-run changes nothing",
+              rc == 0 and out.get("dry_run") and not herdr_log(f) and state_text(f) == before, out)
+        rc, out = move(f)
+        data = json.loads(f.herdr_state.read_text())
+        state = f.reload()
+        verbs = [entry[:2] for entry in data["log"]]
+        check("move-to-tab turns zoom off and moves the pane with label and no focus; identity and state follow",
+              rc == 0 and out.get("tab_id") == "w9:t1"
+              and data["tabs"]["w9:t1"] == {"label": "t-impl-sol", "panes": ["w1:p2"]}
+              and ["pane", "zoom"] in verbs and ["tab", "focus"] not in verbs and ["tab", "rename"] not in verbs
+              and data["agents"]["t-impl-sol"]["agent"]["agent_session"]["value"] == SESSION
+              and state["roles"]["t-impl-sol"]["tab_id"] == "w9:t1"
+              and state["roles"]["t-impl-sol"]["pane_id"] == "w1:p2", out)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        f = setup(tmp, tabs={"w1:t1": {"label": "main", "panes": ["w1:p1", "w1:p3"]},
+                             "w1:t2": {"label": "7", "panes": ["w1:p2"]}})
+        rc, out = move(f)
+        data = json.loads(f.herdr_state.read_text())
+        state = f.reload()
+        check("move-to-tab renames an already-alone tab and records its tab_id, without a move",
+              rc == 0 and "already alone in its tab" in out.get("reasons", [])
+              and data["tabs"]["w1:t2"]["label"] == "t-impl-sol"
+              and ["pane", "move"] not in [e[:2] for e in data["log"]]
+              and state["roles"]["t-impl-sol"]["tab_id"] == "w1:t2", out)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        f = setup(tmp, zoomed={"w1:t1": True}, zoom_sticky=True)
+        before = state_text(f)
+        rc, out = move(f)
+        verbs = [e[:2] for e in herdr_log(f)]
+        check("move-to-tab says cannot tell when Herdr does not move the pane (zoomed tab); no rename, no state write",
+              rc == 3 and "zoomed_tab" in " ".join(out.get("reasons", []))
+              and ["tab", "rename"] not in verbs and state_text(f) == before, out)
+
+    for label, change, want_rc in (
+            ("a working role", lambda d: d["agents"]["t-impl-sol"].update(statuses=["working"]), 1),
+            ("an unknown agent state", lambda d: d["agents"]["t-impl-sol"].update(statuses=["unknown"]), 3),
+            ("a different live session", lambda d: d["agents"]["t-impl-sol"]["agent"].update(
+                agent_session={"value": "other-session"}), 1),
+            ("a different live pane", lambda d: d["agents"]["t-impl-sol"]["agent"].update(pane_id="w1:p9"), 1)):
+        with tempfile.TemporaryDirectory() as tmp:
+            f = setup(tmp)
+            data = json.loads(f.herdr_state.read_text())
+            change(data)
+            f.herdr_state.write_text(json.dumps(data))
+            before = state_text(f)
+            rc, out = move(f)
+            check(f"move-to-tab stops for {label} before any Herdr change",
+                  rc == want_rc and not herdr_log(f) and state_text(f) == before, out)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        f = setup(tmp)
+        del f.state["roles"]["t-impl-sol"]
+        (f.team_dir / "team-state.yaml").write_text(yaml.safe_dump(f.state, sort_keys=False))
+        rc, out = move(f)
+        check("move-to-tab refuses a role with no state record and creates none",
+              rc == 1 and not herdr_log(f) and "t-impl-sol" not in f.reload()["roles"], out)
+
 def robustness_cases(check):
     with tempfile.TemporaryDirectory() as tmp:
         f = Fixture(tmp)
@@ -949,3 +1034,4 @@ def run(check):
     commit_cases(check)
     commit_error_cases(check)
     robustness_cases(check)
+    move_tab_cases(check)

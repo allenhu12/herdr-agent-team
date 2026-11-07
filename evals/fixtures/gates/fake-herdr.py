@@ -19,6 +19,10 @@ An "on_prompt" hook per agent can apply a change when a prompt arrives:
   {"write": {"path": "...", "text": "..."}}  writes a file
   {"echo": true}  adds the prompt text to the screen
   {"context_reply": true}  also answers a context read: "CONTEXT-OK-<code>"
+Tabs (move-to-tab tests): "tabs": {"<tab>": {"label": "...", "panes": ["<pane>", ...]}},
+"zoomed": {"<tab>": true}, "zoom_sticky": true keeps zoom on after `pane zoom --off`,
+"lead_pane"/"panes_extra" are listed by `pane list`. `pane move <pane> --new-tab` moves
+the agent that owns the pane into a new tab "w9:tN" unless its tab is zoomed.
 """
 import json
 import os
@@ -137,6 +141,60 @@ def main(argv):
             state = "blocked" if result == "blocked" else "working"
             print(json.dumps({"id": "cli:agent:prompt", "result": {"agent": {"agent_status": state}}}))
         return 0 if entry is not None else 1
+    if argv[:2] == ["tab", "get"]:
+        tab = data.get("tabs", {}).get(argv[2])
+        if tab is None:
+            print(json.dumps({"error": {"code": "tab_not_found"}, "id": "cli:tab:get"}))
+            return 1
+        print(json.dumps({"id": "cli:tab:get", "result": {"tab": {
+            "tab_id": argv[2], "label": tab.get("label"), "pane_count": len(tab.get("panes", []))}}}))
+        return 0
+    if argv[:2] in (["tab", "rename"], ["tab", "focus"]):
+        data.setdefault("log", []).append(argv)
+        if argv[2] not in data.get("tabs", {}):
+            save(path, data)
+            print(json.dumps({"error": {"code": "tab_not_found"}, "id": f"cli:tab:{argv[1]}"}))
+            return 1
+        if argv[1] == "rename":
+            data["tabs"][argv[2]]["label"] = argv[3]
+        save(path, data)
+        print(json.dumps({"id": f"cli:tab:{argv[1]}", "result": {"type": "ok"}}))
+        return 0
+    if argv[:2] == ["pane", "list"]:
+        panes = [{"pane_id": p, "tab_id": t} for t, tab in data.get("tabs", {}).items()
+                 for p in tab.get("panes", [])]
+        print(json.dumps({"id": "cli:pane:list", "result": {"panes": panes}}))
+        return 0
+    if argv[:2] == ["pane", "zoom"]:
+        data.setdefault("log", []).append(argv)
+        pane = argv[argv.index("--pane") + 1]
+        for t, tab in data.get("tabs", {}).items():
+            if pane in tab.get("panes", []) and "--off" in argv and not data.get("zoom_sticky"):
+                data.setdefault("zoomed", {})[t] = False
+        save(path, data)
+        print(json.dumps({"id": "cli:pane:zoom", "result": {"type": "ok"}}))
+        return 0
+    if argv[:2] == ["pane", "move"]:
+        data.setdefault("log", []).append(argv)
+        pane, tabs = argv[2], data.setdefault("tabs", {})
+        src = next((t for t, tab in tabs.items() if pane in tab.get("panes", [])), None)
+        if src is None or data.get("zoomed", {}).get(src):
+            save(path, data)
+            print(json.dumps({"id": "cli:pane:move", "result": {"move_result": {
+                "changed": False, "reason": "zoomed_tab" if src else "pane_not_found"}}}))
+            return 0
+        n = data["tabs_created"] = data.get("tabs_created", 0) + 1
+        new = f"w9:t{n}"
+        tabs[src]["panes"].remove(pane)
+        label = argv[argv.index("--label") + 1] if "--label" in argv else str(n)
+        tabs[new] = {"label": label, "panes": [pane]}
+        for entry in data["agents"].values():
+            if entry["agent"].get("pane_id") == pane:
+                entry["agent"]["tab_id"] = new
+        save(path, data)
+        print(json.dumps({"id": "cli:pane:move", "result": {"move_result": {
+            "changed": True, "created_tab": {"tab_id": new}, "pane": {"pane_id": pane, "tab_id": new}}}}))
+        return 0
     if argv[:2] == ["agent", "wait"]:
         time.sleep(0.05)
         return 0

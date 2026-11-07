@@ -97,7 +97,7 @@ def main():
           and {"name", "pane_id", "kind", "cwd", "process_identity", "identity_verified_at"} <= state["lead"].keys()
           and "lead" not in state["roles"] and isinstance(state["lead_history"], list))
     required_role = {"name", "responsibility", "kind", "model", "model_label", "profile",
-                     "effort", "launch_args", "access", "checkout_dir", "position",
+                     "effort", "launch_args", "access", "checkout_dir",
                      "write_ceiling", "up_agent", "low_agent"}
     roles = team["roles"]
     check("role templates carry explicit launch and access fields",
@@ -188,6 +188,23 @@ def main():
     for role in legacy["roles"]:
         role.pop("context_roots", None)
     check("legacy v2 roles without context_roots remain valid", not rrt.validate(legacy), rrt.validate(legacy))
+    check("new teams default to layout tabs with no role position",
+          team.get("layout") == "tabs" and all("position" not in r for r in team.get("roles") or []))
+    placed = copy.deepcopy(team)
+    placed["roles"][0]["position"] = {"direction": "right", "from": "lead"}
+    check("renderer rejects a role position under layout tabs",
+          any("remove position" in e for e in rrt.validate(placed)), rrt.validate(placed))
+    odd = copy.deepcopy(team)
+    odd["layout"] = "grid"
+    check("renderer rejects an unknown layout", any("layout must be" in e for e in rrt.validate(odd)),
+          rrt.validate(odd))
+    chained = copy.deepcopy(team)
+    chained.pop("layout")
+    for i, role in enumerate(chained["roles"]):
+        role["position"] = ({"direction": "right", "from": "lead"} if i == 0 else
+                            {"direction": "down", "from": chained["roles"][i - 1]["name"]})
+    check("a team without layout keeps the fixed chain rules", not rrt.validate(chained), rrt.validate(chained))
+    check("layout tabs renders a tab list", "## Tab layout" in rrt.render(team))
     with_context = copy.deepcopy(team)
     with_context["roles"][0]["context_roots"] = ["/sample/context"]
     rendered = rrt.render(with_context)

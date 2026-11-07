@@ -17,9 +17,10 @@ the current Lead runs Adjust. A Launcher after handoff refuses it.
    and the fixed chain. Dry-run
    `assets/render-role-tree.py` on it. A failed preflight changes
    nothing: no pane stops, no file changes.
-3. **Recompute the chain.** After any add, remove, or rename, rewrite
-   every position from role order: role 1 `right` from `lead`, role N
-   `down` from role N-1.
+3. **Recompute the chain (`layout: chain` only).** After any add, remove,
+   or rename, rewrite every position from role order: role 1 `right` from
+   `lead`, role N `down` from role N-1. Under `layout: tabs` roles have no
+   position; skip this rule.
 4. **Write together.** Update team.yaml and team-state.yaml atomically in
    the same step, then re-render `<team_dir>/role-tree.md` from the new
    team.yaml (assemble.md step 6).
@@ -35,11 +36,11 @@ the current Lead runs Adjust. A Launcher after handoff refuses it.
    given, must be an absolute path to an existing file. Optional
    `context_roots` default to `[]`; validate their shape and existence
    through Assemble before launch. Append the role
-   to the end of the role order. Its position is `down` from the current last role, or
-   `right` from `lead` if it is the only role.
+   to the end of the role order. Under `layout: chain` its position is `down` from the current last role, or
+   `right` from `lead` if it is the only role; under `layout: tabs` it gets its own tab.
 2. Preflight (shared rule 2).
 3. Create its checkout (none in a shared-mode team: the pane's cwd is
-   the knowledge root, or the code repository for a source writer), split the pane from its chain anchor, start it,
+   the knowledge root, or the code repository for a source writer), create its tab (or split the pane from its chain anchor under `layout: chain`), start it,
    and verify its header (assemble.md step 4a).
 4. Write both files and re-render.
 5. Send the opening instruction, then run the context read for a role
@@ -56,11 +57,14 @@ source writer's model instead.
 ## Remove a role
 
 1. Refuse a busy role (shared rule 5).
-2. Preflight the remaining roster with the chain recomputed. Removing the
-   first role makes the second role `right` from `lead`. Removing a
-   middle role anchors the next one on the previous role.
+2. Preflight the remaining roster (with the chain recomputed under
+   `layout: chain`: removing the first role makes the second role `right`
+   from `lead`; removing a middle role anchors the next one on the
+   previous role).
 3. Stop the agent and close its pane only if `created_by_team` is true.
-   Otherwise leave the pane and report it.
+   Under `layout: tabs`, closing the last pane of a tab also closes the
+   tab (checked on Herdr 2026-11-07); if the tab still holds another
+   pane, leave the tab. Otherwise leave the pane and report it.
 4. Delete the role from team.yaml. Move its state record to the archive
    with `archive-state.py archive <team_dir> --remove-role <name>`
    (state-files.md). Queued Assignments for it stay recorded, marked
@@ -81,14 +85,15 @@ source writer's model instead.
    not change.
 3. Preflight the resulting team.yaml. On failure the current agent keeps
    running untouched.
-4. Stop the agent and close its pane. Split a new pane from the same
-   chain anchor, start the agent with the new explicit arguments, and
+4. Stop the agent and close its pane. Create a new tab for it (or, under
+   `layout: chain`, split a new pane from the same chain anchor), start the agent with the new explicit arguments, and
    verify its header. On a header failure, report it, keep the role
    record with the failed evidence, and do not dispatch to it.
 5. On a rename: add the old name to that role's `role_history` with a
-   timestamp, move the next role's `position.from` and every queued
-   Assignment's assignee to the new name, and keep the old name on
-   finished Assignments. Rename the pane label to match.
+   timestamp, move every queued Assignment's assignee (and, under
+   `layout: chain`, the next role's `position.from`) to the new name, and
+   keep the old name on finished Assignments. Rename the pane label, and
+   the tab label under `layout: tabs`, to match.
 6. Write both files and re-render, with no `context_read` on the new
    record; never copy it from the old one.
 7. Send the opening instruction. The agent loses its in-session memory;
@@ -97,6 +102,30 @@ source writer's model instead.
 
 To replace a role session while its Assignment remains running, use
 [Rotate](rotate.md), not this quiet-role replacement procedure.
+
+## Move a live team to tabs
+
+For a `layout: chain` team whose panes got too narrow (a cut Codex footer
+makes the precheck say cannot tell). The agents keep running; pane id,
+terminal and session do not change, so launch verification stays valid.
+
+1. For each idle role, run
+   `assets/move-to-tab.py --team-dir <team_dir> --role <name>`
+   (`--dry-run` first if unsure). It first checks the live agent against
+   its team-state record (pane, kind, cwd, session) and refuses a
+   mismatch, a missing record, or a working or blocked role; an unknown
+   state is cannot tell. Move a busy role after its Assignment settles,
+   and send it no prompt while the move runs. The script turns zoom off in
+   the source tab (a zoomed tab makes `herdr pane move` return
+   `changed: false` with exit 0), then runs
+   `herdr pane move <pane> --new-tab --label <role> --no-focus`, so the
+   Lead keeps focus, checks the identity again, and records
+   `roles.<name>.tab_id`. A role already alone in its tab gets its tab
+   renamed and recorded. On exit 3 after a move, check the named tab by
+   hand before going on.
+2. When every role is in its own tab, set `layout: tabs` in team.yaml,
+   remove each role's `position`, and re-render the Role Tree.
+3. Run the dispatch precheck for each role before its next Assignment.
 
 ## Change a role's context roots
 

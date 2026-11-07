@@ -190,12 +190,16 @@ or glob under that repository's `path`. The model label is for names; model is t
 Resolve launch_args before starting; an empty unresolved list cannot launch.
 CLI mappings and header checks live in `identity-and-launch.md`.
 
-Position is split direction plus anchor, current-tab only. New launches
+`layout` (team-level) is `tabs` or `chain`; absent means `chain` (teams
+made before 4.9.0). Under `tabs` each Sub-Agent runs in its own Herdr tab
+named after the role, and roles have no `position`. Under `chain`,
+position is split direction plus anchor, current-tab only, and launches
 use the fixed chain: role 1 is `{direction: right, from: lead}` and role
 N is `{direction: down, from: <role N-1 name>}`. Adjust recomputes the
-chain from role order after any add, remove, or rename. A live team in any
-other layout keeps its panes and is reported as "layout migration needed";
-no new pane is launched into it until its team.yaml follows the chain. The static Lead
+chain from role order after any add, remove, or rename. A live chain team
+in any other layout keeps its panes and is reported as "layout migration
+needed"; no new pane is launched into it until its team.yaml follows the
+chain, or it moves to tabs (adjust.md "Move a live team to tabs"). The static Lead
 name is separate from roles; dynamic state maps it to its current pane.
 Read-only roles have `write_ceiling: []`; every checkout has one writer at
 a time (writer-rules.md).
@@ -232,7 +236,7 @@ Lead-Agent-owned only. Top level:
 - `launcher`: null, or the Launcher's name, pane_id, kind,
   process_identity, and handoff_at. The Launcher writes nothing after
   handoff_at; it is never a second Lead.
-- `roles`: pane_id, kind, cwd, expected_agent_state, checkout_identity
+- `roles`: pane_id, tab_id (under `layout: tabs`), kind, cwd, expected_agent_state, checkout_identity
   (real root and git_dir, or non-git snapshot identity), created_by_team,
   process_identity, intended model/profile/effort, launch_verification
   (optionally with `model_footer_text`, the exact footer text that showed

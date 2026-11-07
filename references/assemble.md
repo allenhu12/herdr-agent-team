@@ -28,7 +28,7 @@ Decide this only after step 1's inventory.
   - Found: seed from it. Set `template: false`, `team_type`, `team_id`,
     `team_dir`, `project_root`, `checkout_mode`, `code_repos`, and replace `<task>` in role names with
     the task prefix (default: the Team ID). Keep the template's role
-    order; positions follow the fixed chain. Resolve every relative
+    order; `layout: tabs` gives each role its own tab (no positions). Resolve every relative
     `prompt_file` against the template's folder and store the absolute
     path; a missing file fails preflight.
     Keep each role's `context_roots` list (absent means `[]`); do not add
@@ -39,7 +39,7 @@ Decide this only after step 1's inventory.
     role word, one-line responsibility, kind, model, effort, and writer
     or reader, an optional absolute `prompt_file` path, and any
     User-supplied context directories. Do not ask
-    for positions; they follow the fixed chain.
+    for positions; each Sub-Agent gets its own tab.
     Render the Role Tree preview and ask for one confirmation.
     After a successful assemble, offer once to save it as
     `assets/teams/<team-type>/team.yaml` with `template: true`, paths set
@@ -85,7 +85,8 @@ Use the seeded file, or assets/team.yaml.template. Select one Sub-Agent by defau
 independent work/review or preserve an explicit User roster. Apply the model
 routing in identity-and-launch.md. Resolve responsibility, kind, exact model
 or documented alias, optional profile, model_label, effort, access,
-checkout_dir, write_ceiling, and split position. Set the team's
+checkout_dir, and write_ceiling. Set `layout: tabs` for a new team (a role gets
+no `position`); `layout: chain` or no `layout` is the older split chain. Set the team's
 `permissions` field (default `inherit`; see identity-and-launch.md). Only
 under `scoped` does a writer role get permission arguments folded into
 `launch_args`; a reader role never gets them.
@@ -156,9 +157,22 @@ Do not reset existing roles, Assignments, resources, or monitors.
 
 ### 4a. When this session is the Lead
 
-Keep reusable roles in place. For a missing role, resolve position.from:
-lead means the verified state.lead.pane_id; another role means its recorded,
-freshly verified pane. Explicit IDs avoid confusing focus with identity.
+Keep reusable roles in place. For a missing role under `layout: tabs`,
+create its own tab in the Lead's workspace and start the agent in the
+tab's pane:
+
+```bash
+herdr tab create --workspace <lead-workspace-id> --label <role-name> --cwd "<checkout_dir>" --no-focus
+herdr agent start <role-name> --kind <kind> --pane <root-pane-id> -- <resolved-app-arguments>
+```
+
+Read the pane id from .result.root_pane.pane_id and the tab id from
+.result.tab.tab_id; record both, with `created_by_team: true`, before
+`agent start`. If the agent does not start, close that tab
+(`herdr tab close <tab_id>`) and report it. Under `layout: chain` (older teams),
+resolve position.from instead: lead means the verified state.lead.pane_id;
+another role means its recorded, freshly verified pane. Explicit IDs avoid
+confusing focus with identity.
 
 ```bash
 herdr pane split --pane <verified-anchor-id> --direction <right|down> --cwd "<checkout_dir>" --no-focus
@@ -186,8 +200,9 @@ identity-and-launch.md, "Launcher and spawned Lead".
 
 3. Verify the Lead's header exactly as for a Sub-Agent. A failure stops
    here: report it, create no Sub-Agent panes, and do not hand off.
-4. Create the Sub-Agent panes along the fixed chain, with `lead`
-   resolved to the new Lead pane, then verify each header. Sub-Agent
+4. Create the Sub-Agent panes as in 4a (own tabs under `layout: tabs`,
+   or the fixed chain with `lead` resolved to the new Lead pane), then
+   verify each header. Sub-Agent
    opening instructions (step 5) name the new Lead and its pane, never
    the Launcher.
 

@@ -16,8 +16,9 @@ features.
 - **A Role Tree.** The skill draws the team as a text tree and saves it
   as `role-tree.md` in the team folder. The skill makes this file from
   `team.yaml`. Do not edit the tree. Change `team.yaml` instead.
-- **A fixed layout.** The Lead is on the left. The Sub-Agents are
-  stacked top to bottom on the right.
+- **One tab per Sub-Agent.** The Lead keeps its pane. Each Sub-Agent
+  gets its own Herdr tab, named after the role (`layout: tabs`). Older
+  teams keep the split chain (`layout: chain`).
 - **Two ways to lead.** Your current session can be the Lead. Or the
   skill can start a separate Lead pane and step back.
 - **Changes while the team runs.** You can add a role, remove a role, or
@@ -286,8 +287,8 @@ question at a time, and each question shows a default:
 3. For each Sub-Agent: a role word, a one-line job, the kind, the model,
    the effort, and writer or reader access.
 
-The skill does not ask about pane positions, because the layout is
-fixed. It also does not ask about the checkout mode: a team with no
+The skill does not ask about pane positions, because each Sub-Agent
+gets its own tab. It also does not ask about the checkout mode: a team with no
 template uses shared mode, so no member gets a worktree. Say "use
 isolated mode" only when two members must edit one code repository at the
 same time; then each writer gets its own worktree.
@@ -337,8 +338,9 @@ To draw the tree yourself:
 python3 skill/assets/render-role-tree.py .herdr-agent-team-login/team.yaml
 ```
 
-The script fails with exit code 2 if the layout is not the fixed chain,
-or if an effort level is not valid for its kind.
+The script fails with exit code 2 if `layout` is not `tabs` or `chain`,
+if a `chain` team breaks the fixed chain, if a `tabs` role has a
+`position`, or if an effort level is not valid for its kind.
 
 ### Effort levels
 
@@ -401,11 +403,12 @@ and [reports/shared-mode-runtime-results.md](reports/shared-mode-runtime-results
   member from gpt-5.6-sol to gpt-5.6-luna with no agent action. The Lead
   now checks the model shown in the pane before every work prompt and
   asks you when it has changed.
-- **Uneven pane heights.** The first Sub-Agent gets half of the
-  right-hand column. The others get a quarter each. You can resize the
-  panes in Herdr.
-- **Layout after changes.** Removing or replacing a role does not move
-  the other panes. The skill reports the layout it sees.
+- **Tab focus.** `herdr pane move --new-tab` focuses the new tab unless
+  `--no-focus` is given; `move-to-tab.py` passes `--no-focus`, so the
+  Lead's tab stays in front.
+- **Chain teams.** In a `layout: chain` team the first Sub-Agent gets
+  half of the right-hand column and the others a quarter each; removing
+  or replacing a role does not move the other panes.
 - **Untested cases.** The interview, Adjust, several teams, and Lead
   replacement follow the written workflow, but live tests for them have
   not run yet.

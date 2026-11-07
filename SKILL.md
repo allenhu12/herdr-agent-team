@@ -2,7 +2,7 @@
 name: herdr-agent-team
 description: "Coordinate an agent team via Herdr when explicitly asked to create a named team, assemble, dispatch, check status, resume, adjust (add/remove/replace a role's model or effort), disband, show the skill version, or 'Use Herdr to complete this task'. Do not activate for generic coding, explanations, or requests to review/edit this skill or a quoted prompt. Requires HERDR_ENV=1 and the Herdr CLI."
 metadata:
-  version: "4.8.0"
+  version: "4.9.0"
 ---
 
 # herdr-agent-team
@@ -90,6 +90,9 @@ Render the read-only Role Tree with
 only source of truth.
 Move settled history out of team-state.yaml with
 [assets/archive-state.py](assets/archive-state.py) (see state-files.md).
+New teams use `layout: tabs`: each Sub-Agent runs in its own Herdr tab.
+Move a live split-pane role into its own tab with
+[assets/move-to-tab.py](assets/move-to-tab.py) (adjust.md "Move a live team to tabs").
 Run the gate scripts where dispatch.md and acceptance.md name them:
 [assets/dispatch-precheck.py](assets/dispatch-precheck.py) before each
 dispatch, [assets/dirty-baseline.py](assets/dirty-baseline.py) for shared-mode

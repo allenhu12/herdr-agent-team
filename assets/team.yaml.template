@@ -17,6 +17,7 @@ code_repos: []           # knowledge-only team: []
 protected_paths_extra: []  # User-added protected paths; core entries are fixed (writer-rules.md)
 permissions: inherit     # inherit = agents follow the User's CLI config; scoped = sandbox flags (identity-and-launch.md)
 monitor: watcher         # watcher (one per Assignment) | team (one team monitor + wake queue; monitoring.md "Team monitor")
+layout: tabs             # tabs (each Sub-Agent in its own Herdr tab) | chain (older split chain; roles then need position)
 lead:
   name: "<task>-lead-<model-label>"
   mode: session          # session = this session is Lead; spawned = Lead pane launched by the team
@@ -44,9 +45,6 @@ roles:
     cli_version: null
     access: writer  # writer | reader; readers write only their own control outputs.
     checkout_dir: "/absolute/exclusive/writer/checkout"
-    position:          # fixed chain: role 1 right from lead, role N down from role N-1
-      direction: right
-      from: lead
     write_ceiling:
       - "src/backend/**"
       - "tests/**"
