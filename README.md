@@ -4,23 +4,18 @@
 ![Status: early](https://img.shields.io/badge/status-early-orange.svg)
 
 **Turn one coding-agent session into a team lead.** The lead plans the work,
-sends each task to a Sub-Agent in its own pane, watches for results, checks
-them, and reports back to you.
+sends each task to a Sub-Agent in its own Herdr tab, watches for results,
+checks them, and reports back to you.
 
 It is an agent skill for [Herdr](https://herdr.dev), a terminal multiplexer
 for coding agents. It works with Claude Code and Codex CLI panes.
 
 ```text
-+---------------------------+-----------------------------------+
-| login-lead-opus           | login-implementor-sol             |
-| role: Lead (this session) | role: implementor                 |
-|                           | state: working                    |
-| - wrote the assignment    |                                   |
-| - waiting for report.md   +-----------------------------------+
-|                           | login-tester-luna                 |
-| state: waiting            | role: tester                      |
-|                           | state: idle                       |
-+---------------------------+-----------------------------------+
+Herdr tabs (layout: tabs — one full-width tab per role):
+
+  login-lead-opus           Lead (this session) · waiting for report.md
+  login-implementor-sol     implementor · working
+  login-tester-luna         tester · idle
 ```
 
 ## Features
@@ -30,14 +25,21 @@ for coding agents. It works with Claude Code and Codex CLI panes.
 - **Choose models and effort per role.** Each Sub-Agent gets its own model
   and effort. Your explicit choice overrides the defaults.
 - **Team templates and a Role Tree.** Start from a template such as
-  `develop`. The skill draws the team as a text tree and a pane layout.
-- **Launch checks.** After each start, the Lead reads the pane header and
-  checks the name, model, and effort. A wrong value stops the work.
+  `develop`. The skill draws the team as a text tree and a tab list.
+- **One tab per Sub-Agent (default).** New teams use `layout: tabs` in
+  `team.yaml`. Each role gets a full-width Herdr tab so Codex footers stay
+  readable and gate scripts can verify model and effort. Older split-pane
+  teams use `layout: chain`; move them to tabs with `assets/move-to-tab.py`.
+- **Launch and gate checks.** After each start, the Lead reads the pane
+  header and checks the name, model, and effort. Before each dispatch and
+  commit, gate scripts (`dispatch-precheck`, `dirty-baseline`,
+  `commit-gate`) enforce the same rules; a refusal stops the work.
 - **Written Assignments and reports.** Every task has a file with one
   outcome, allowed paths, and checks. Every result comes back as a report
   with a frozen commit or artifact.
-- **Background monitoring.** A watcher script wakes the Lead only when a
-  decision is needed, so the Lead does not poll the screen.
+- **Background monitoring.** By default, one watcher runs per Assignment and
+  wakes the Lead only when a decision is needed. Set `monitor: team` in
+  `team.yaml` to use a single team monitor tab and a wake queue instead.
 - **No two writers in one checkout.** Each writer has its own checkout, or
   the team runs in shared mode with a single source-code writer.
 - **Nothing goes into git without you.** The Lead shows the files to commit
@@ -87,7 +89,7 @@ testing go to Codex by default.
 
 | Workflow | What it does |
 |---|---|
-| **Assemble** | Start a team of Sub-Agents, each in its own pane, with a chosen model and effort. |
+| **Assemble** | Start a team of Sub-Agents, each in its own Herdr tab, with a chosen model and effort. |
 | **Dispatch** | Write an Assignment, send it to a Sub-Agent, and monitor it in the background. |
 | **Acceptance** | Read the reports, verify the frozen results, and integrate accepted commits. |
 | **Status** and **Resume** | Check the team state and recover after a restart. |
@@ -112,7 +114,7 @@ root.
 |---|---|
 | `SKILL.md` | The entry point the agent loads. |
 | `references/` | One file per workflow, plus rules for writers, state files, and monitoring. |
-| `assets/` | Templates for team, state, and Assignment files, a watcher script, and a Role Tree renderer. |
+| `assets/` | Templates, gate scripts, watchers, `team-monitor.py`, `move-to-tab.py`, and the Role Tree renderer. |
 | `evals/` | Static package checks (`check_package.py`), trigger cases, and runtime cases. |
 | `reports/` | Recorded test results, including the limits of each test. |
 | `agents/` | Interface metadata for package compatibility. |
@@ -136,8 +138,8 @@ have static checks only. Their live runtime cases (V4-01 to V4-07) have not
 run. Check `reports/v4-session-handoff-rotate-results.md` before you rely on
 Rotate.
 
-The current version is in SKILL.md (`metadata.version`). Changes per
-version are in [CHANGELOG.md](CHANGELOG.md). Run
+The current release is **4.9.0** (`metadata.version` in SKILL.md). Changes
+per version are in [CHANGELOG.md](CHANGELOG.md). Run
 `python3 assets/skill-version.py` to see the version you have installed.
 
 Ideas for later versions are in [TODO.md](TODO.md).

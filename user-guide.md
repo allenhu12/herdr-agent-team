@@ -2,9 +2,10 @@
 
 This skill turns the current session into the Lead Agent, or into a
 Launcher that starts a separate Lead pane and steps back. It defines
-Assignments, sends them to Sub-Agents in Herdr panes, monitors completion,
-reviews frozen results, and verifies the integrated result. Sub-Agents do
-routine implementation; the Lead can integrate accepted commits and run checks.
+Assignments, sends them to Sub-Agents in Herdr tabs (`layout: tabs` on
+new teams), monitors completion, reviews frozen results, and verifies the
+integrated result. Sub-Agents do routine implementation; the Lead can
+integrate accepted commits and run checks.
 
 This guide is the full manual. For what the skill is, what you need, and
 how to install it, read the [README](README.md) first.
@@ -122,18 +123,48 @@ high`. After each launch the Lead verifies the name, actual model, and
 effort in the pane header before sending even the opening instruction.
 Missing/wrong fields stop dispatch. Display labels are not proof of settings.
 
+Optional `context_roots` on a role name extra directories the role must read
+before relevant work. After launch, `assets/context-read.py` records that
+read; `dispatch-precheck.py` refuses a new Assignment on that role until the
+read is on record.
+
+### Gate scripts
+
+From 4.3 onward the skill uses Python gate scripts instead of ad hoc checks.
+The Lead runs them where [dispatch.md](references/dispatch.md) and
+[acceptance.md](references/acceptance.md) say so:
+
+| Script | When | Pass / fail |
+|---|---|---|
+| `assets/dispatch-precheck.py` | Before each dispatch | Verifies pane identity, model, effort, and context read when required |
+| `assets/dirty-baseline.py` | Shared mode, before dispatch and at acceptance | Records and checks uncommitted files the User already had |
+| `assets/commit-gate.py` | Before and after an approved source commit | Ensures the commit tree matches what you approved |
+
+Exit `0` means continue. Exit `1` is a hard refusal; exit `3` is cannot
+tell (stop and investigate). Do not bypass a refusal by hand.
+
 ### Dispatch and accept
 
 The Lead writes the Assignment before prompting: one outcome, full starting
 commit SHA, checkout, allowed paths, exclusions, actual project checks with
 cwd, and artifact format. The Sub-Agent inspects code and finds exact edits.
-The Lead backgrounds `assets/watch-assignment.sh` through the host's
-background-task facility when other work continues. The script sends the
-opening prompt itself, then only wakes the Lead on an outcome that needs a
-decision — a written `report.md`, a permission request held past 20
-seconds, or a real timeout — never on an in-scope permission prompt the
-Sub-Agent was already launched authorized to answer itself, and never on
-an ordinary intermediate `working` state.
+With `monitor: watcher` (the default), the Lead backgrounds
+`assets/watch-assignment.sh` through the host's background-task facility
+when other work continues. The script sends the opening prompt itself, then
+only wakes the Lead on an outcome that needs a decision — a written
+`report.md`, a permission request held past 20 seconds, or a real timeout —
+never on an in-scope permission prompt the Sub-Agent was already launched
+authorized to answer itself, and never on an ordinary intermediate
+`working` state.
+
+With `monitor: team`, one `assets/team-monitor.py` process runs in its own
+Herdr tab and replaces per-Assignment watchers plus inbox wait-ack. On every
+wake (its `WAKE:` doorbell or any User message), the Lead runs
+`team-monitor.py drain` first, then reconciles your message and open
+questions. See [monitoring.md](references/monitoring.md).
+
+Roles with `steering: inbox` receive mid-task User messages through
+`assets/inbox.py`; other roles keep normal typed prompts.
 
 A settled pane is only a signal to inspect the current-attempt report. The
 report has id/attempt/status metadata and six content sections:
@@ -195,7 +226,9 @@ repositories. The develop template does this. In shared mode:
 - Nothing goes into git without you. The implementor edits but does not
   commit. After the Lead accepts the work, it shows you the files to
   commit, and marks files that held your uncommitted changes. You say yes,
-  and then the implementor commits exactly those files.
+  and then the implementor commits exactly those files. `commit-gate.py`
+  checks that the resulting commit matches what you approved (including
+  after a merge).
 - To skip that question, say so in your own words, for example "commit
   accepted work without asking me". Files that held your uncommitted
   changes still come to you. Say "ask me again" to turn it off; Disband
@@ -267,57 +300,39 @@ Ask for the team, then remove the writer role you do not need:
 
 > Remove the writer from the login team.
 
-The screen has three panes. The Lead is on the left. The two members are
-stacked on the right. Each pane shows its agent name, so you can tell the
-roles apart.
+Herdr shows one tab per role. Switch tabs to see each agent; each tab is
+full width so footers stay readable. Tab labels match the role names.
+
+**While the implementor works:**
 
 ```text
-+---------------------------+-----------------------------------+
-| login-lead-opus           | login-implementor-sol             |
-| role: Lead (this session) | role: implementor                 |
-|                           | codex · gpt-5.6-sol · medium      |
-| - wrote assignment        |                                   |
-|   login-impl              | - editing src/auth/login.ts       |
-| - watcher running in the  | - editing src/auth/login.test.ts  |
-|   background              | - state: working                  |
-| - waiting for report.md   |                                   |
-|                           +-----------------------------------+
-| state: waiting            | login-tester-luna                 |
-|                           | role: tester                      |
-|                           | codex · gpt-5.6-luna · xhigh      |
-|                           |                                   |
-|                           | - waits for the Lead to accept    |
-|                           |   the implementor's work          |
-|                           | - state: idle                     |
-+---------------------------+-----------------------------------+
+tab: login-lead-opus           Lead (this session) · waiting
+  - wrote assignment login-impl
+  - assignment watcher running in the background
+  - waiting for report.md
+
+tab: login-implementor-sol    implementor · working
+  - codex · gpt-5.6-sol · medium
+  - editing src/auth/login.ts and login.test.ts
+
+tab: login-tester-luna         tester · idle
+  - codex · gpt-5.6-luna · xhigh
+  - waits for the Lead to accept the implementor's work
 ```
 
-The Lead pane is always on the left. The implementor is always on top on
-the right. The tester is always below it.
-
-A short time later, the implementor has written its `report.md`. The Lead
-accepted it and sent the tester its Assignment. The roles swap work:
+**After the Lead accepts the implementor's report and dispatches the tester:**
 
 ```text
-+---------------------------+-----------------------------------+
-| login-lead-opus           | login-implementor-sol             |
-| role: Lead (this session) | role: implementor                 |
-|                           |                                   |
-| - accepted login-impl     | - report.md written               |
-|   (checked scope and      | - frozen commit recorded          |
-|   diff)                   | - state: idle                     |
-| - sent login-test         |                                   |
-| - waiting for report.md   +-----------------------------------+
-|                           | login-tester-luna                 |
-| state: waiting            | role: tester                      |
-|                           |                                   |
-|                           | - running the project's tests     |
-|                           | - writes only test output paths   |
-|                           | - state: working                  |
-+---------------------------+-----------------------------------+
+tab: login-lead-opus           Lead · waiting for login-test report
+
+tab: login-implementor-sol    implementor · idle
+  - report.md written, frozen commit recorded
+
+tab: login-tester-luna         tester · working
+  - running the project's tests (test output paths only)
 ```
 
-What to see in the diagram:
+What to see in the example:
 
 - Only the implementor edits source code. If the tester finds a bug, it
   reports it. The Lead passes the fix to the implementor.
@@ -338,11 +353,11 @@ Lead.
 - **Yes.** This session is the Lead. The template's Lead suggestion is
   only advice. The Role Tree shows this session's real model and effort,
   or `unknown`.
-- **No.** This session is the Launcher. It starts a Lead pane with the
-  template's Lead settings, then the Sub-Agent panes to its right. It
-  writes the first team files, tells the new Lead to run Resume, and
-  steps back. From then on you talk to the Lead pane. The Launcher does
-  not relay messages.
+- **No.** This session is the Launcher. It starts a Lead pane in its own
+  tab with the template's Lead settings, then creates each Sub-Agent in a
+  separate Herdr tab. It writes the first team files, tells the new Lead
+  to run Resume, and steps back. From then on you talk to the Lead tab.
+  The Launcher does not relay messages.
 
 ### Several teams in one project
 
@@ -355,8 +370,8 @@ the default prefix for agent names, such as `dev-tester-luna`.
 
 > Add a DeepSeek implementer to the dev team.
 
-Adjust adds `dev-implementer-deepseek` at the bottom of the right-hand
-stack, launched with `codex -p deepseek-v4-flash -m deepseek-v4-flash`.
+Adjust adds `dev-implementer-deepseek` in a new Herdr tab, launched with
+`codex -p deepseek-v4-flash -m deepseek-v4-flash`.
 Codex reads that profile from `~/.codex/deepseek-v4-flash.config.toml`,
 layered over your base config. If the file is missing or selects another
 model, preflight stops.
@@ -371,6 +386,12 @@ in its history. Every change re-renders the Role Tree.
 A spawned Lead can be replaced only when the team is quiet: no active
 Assignment and no running monitor. A session Lead cannot replace itself.
 
+**Move an older chain team to tabs.** Teams created before 4.9.0 have
+`layout: chain` (split panes) or no `layout` field. To widen narrow panes
+without restarting, run `assets/move-to-tab.py` role by role, then set
+`layout: tabs` in `team.yaml` when every Sub-Agent has its own tab. Details
+are in [adjust.md](references/adjust.md) "Move a live team to tabs".
+
 ### Status, Resume, Disband
 
 Status reads state and Herdr observations, displays the Lead and roster,
@@ -382,7 +403,13 @@ Settled current reports go to acceptance. Gone agents are rebuilt with
 explicit launch checks while preserving their checkouts. Name collisions
 are quarantined. Blocked waits are not re-armed in a tight loop.
 
-### Rotate a role with an active Assignment
+### Lead context and Rotate a role
+
+When the Lead's context drops below 40%, refresh `lead-handoff.md` at the
+next safe boundary. A **Claude Code** session Lead uses `/compact` via
+`assets/lead-compact.py` so the same session, watcher, and pane survive.
+Other Lead kinds start a new session and run Resume instead. Below 20%, do
+that at once.
 
 When a role warns that less than 40% context remains, it finishes its
 current sub-step, records a checkpoint, writes its handoff, and stops. If
